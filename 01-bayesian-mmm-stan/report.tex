@@ -1,0 +1,272 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{everypage}
+\usepackage{background}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+\definecolor{bordercolor}{RGB}{68,94,114}
+
+\backgroundsetup{
+  scale=0.96, color=bordercolor, opacity=0.5, angle=0,
+  position=current page.center,
+  contents={\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width=4pt, color=bordercolor]
+      (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}}
+}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+\vspace*{3cm}
+{\Huge\bfseries Bayesian Marketing Mix Model\\\bigskip
+\LARGE Recovering Adstock, Saturation, and ROAS in Stan
+\par}
+\vspace{1.5cm}
+{\Large Magnus Foldeström\par}
+\vfill
+\end{titlepage}
+
+\section{What this project does}
+
+Marketing Mix Modelling (MMM) decomposes weekly revenue into the
+contributions of paid channels, owned channels, seasonality, trend,
+competitor pressure, and events. This project fits a Bayesian MMM in
+Stan on a synthetic weekly panel with known ground-truth parameters,
+and checks whether the posterior recovers them.
+
+The model has the standard IRB-adjacent MMM structure: geometric
+adstock and Hill saturation per channel, additive controls, and a
+Normal likelihood on revenue. All parameters have proper priors and
+are sampled via HMC-NUTS.
+
+\section{Data}
+
+A synthetic weekly time series of 156 weeks (three years, 2022--2024)
+with five paid channels (Search, Meta, TikTok, YouTube, Display), one
+owned channel (Newsletter), and two controls (competitor sales,
+holiday events). Each channel has a known adstock decay $\lambda_c$,
+Hill half-point $K_c$, and maximum contribution $\alpha_{\max,c}$
+which the model tries to recover.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r r r}
+\toprule
+\textbf{Channel} & $\alpha_{\max}$ & $\lambda$ & $K$ \\
+\midrule
+Search  & 25\,000 & 0.10 & 20\,000 \\
+Meta    & 35\,000 & 0.30 & 60\,000 \\
+TikTok  & 28\,000 & 0.25 & 40\,000 \\
+YouTube & 32\,000 & 0.40 & 50\,000 \\
+Display & 15\,000 & 0.20 & 30\,000 \\
+\bottomrule
+\end{tabular}
+\caption{Ground-truth parameters embedded in the synthetic generator. The model attempts to recover these from revenue and spend alone.}
+\end{table}
+
+\section{The model}
+
+For each channel $c$, raw weekly spend $x_{c,t}$ is transformed by
+geometric adstock and Hill saturation:
+$$\text{Ad}_{c,t} = x_{c,t} + \lambda_c \cdot \text{Ad}_{c,t-1}, \qquad \text{Sat}_{c,t} = \frac{\text{Ad}_{c,t}}{K_c + \text{Ad}_{c,t}}$$
+Revenue is modelled as
+$$\text{revenue}_t \sim \mathcal{N}\big(\mu_t, \sigma^2\big)$$
+$$\mu_t = \beta_0 + \beta_{\text{trend}} t + \beta_{\cos} S_c(t) + \beta_{\sin} S_s(t) + \beta_{\text{comp}} c_t + \beta_{\text{ev}} e_t + \alpha_{\text{nl}} \text{Sat}_{\text{nl},t} + \sum_{c} \alpha_{\max,c} \text{Sat}_{c,t}$$
+
+Priors are weakly informative: $\lambda_c \sim \text{Beta}(2, 4)$
+(favouring shorter memory), $K_c \sim \text{HalfNormal}(40{,}000)$,
+$\alpha_{\max,c} \sim \text{HalfNormal}(30{,}000)$, and standard
+Normal priors on the regression coefficients.
+
+\section{Inference}
+
+Four chains, 1000 warmup + 1000 sampling iterations each, HMC-NUTS
+with $\text{adapt\_delta} = 0.95$ and $\text{max\_treedepth} = 12$. All
+diagnostics passed: no divergences, treedepth satisfactory,
+$\widehat{R} \approx 1$, ESS satisfactory.
+
+\section{Results}
+
+\subsection{Model fit}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+$R^2$      & \textbf{0.873} \\
+RMSE       & 17\,572 SEK \\
+MAE        & 14\,360 SEK \\
+MAPE       & \textbf{4.4\%} \\
+\bottomrule
+\end{tabular}
+\caption{In-sample fit metrics on the 156-week panel.}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/01_actual_vs_modeled.png}
+\caption{Actual weekly revenue (blue) vs posterior-mean prediction (orange) with the 90\% credible band.}
+\end{figure}
+
+\subsection{Parameter recovery}
+
+The posterior 90\% credible interval covers the true value for
+\textbf{all 15 channel parameters} (5 channels $\times$ 3 parameters).
+Posterior means are typically within one true-value unit but the
+intervals are wide because three years of weekly data is a short
+identification horizon.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{l l r r r r c}
+\toprule
+\textbf{Channel} & \textbf{Param} & \textbf{True} & \textbf{Mean} & \textbf{5\%} & \textbf{95\%} & \textbf{Covers} \\
+\midrule
+Search  & $\alpha_{\max}$ & 25\,000 & 39\,658 & 9\,361 & 73\,308 & yes \\
+Search  & $\lambda$       & 0.100   & 0.301  & 0.071 & 0.579  & yes \\
+Search  & $K$             & 20\,000 & 52\,840 & 8\,107 & 109\,328 & yes \\
+Meta    & $\alpha_{\max}$ & 35\,000 & 29\,219 & 4\,476 & 60\,940 & yes \\
+Meta    & $\lambda$       & 0.300   & 0.293  & 0.063 & 0.594  & yes \\
+Meta    & $K$             & 60\,000 & 47\,217 & 5\,233 & 105\,721 & yes \\
+TikTok  & $\alpha_{\max}$ & 28\,000 & 37\,107 & 8\,443 & 67\,999 & yes \\
+TikTok  & $\lambda$       & 0.250   & 0.310  & 0.077 & 0.582  & yes \\
+TikTok  & $K$             & 40\,000 & 54\,411 & 7\,779 & 112\,621 & yes \\
+YouTube & $\alpha_{\max}$ & 32\,000 & 32\,244 & 13\,903 & 54\,678 & yes \\
+YouTube & $\lambda$       & 0.400   & 0.210  & 0.051 & 0.416  & yes \\
+YouTube & $K$             & 50\,000 & 63\,275 & 15\,956 & 116\,774 & yes \\
+Display & $\alpha_{\max}$ & 15\,000 & 12\,445 & 844   & 36\,742 & yes \\
+Display & $\lambda$       & 0.200   & 0.350  & 0.085 & 0.683  & yes \\
+Display & $K$             & 30\,000 & 55\,332 & 2\,179 & 118\,122 & yes \\
+\bottomrule
+\end{tabular}
+\caption{Posterior recovery of the ground-truth channel parameters. All 15 intervals contain the true value, but interval widths are large because a 156-week panel provides only limited identification.}
+\end{table}
+
+\subsection{Revenue decomposition}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/02_decomposition.png}
+\caption{Posterior mean contribution per driver over time. Baseline dominates; channel contributions are the incremental component on top of the always-on level.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r r}
+\toprule
+\textbf{Driver} & \textbf{Contribution (MSEK)} & \textbf{Share} \\
+\midrule
+Baseline    & 38.3 & 73.7\% \\
+Meta        & 3.0  & 5.8\% \\
+TikTok      & 3.0  & 5.7\% \\
+Search      & 2.7  & 5.1\% \\
+Trend       & 2.6  & 5.1\% \\
+YouTube     & 1.4  & 2.6\% \\
+Display     & 0.8  & 1.6\% \\
+Newsletter  & 0.6  & 1.1\% \\
+Events      & 0.2  & 0.4\% \\
+Season      & 0.0  & 0.0\% \\
+Competitor  & $-0.6$ & $-1.1\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Three-year revenue attribution by driver. Season nets to near-zero because peaks and troughs cancel over an integer number of years.}
+\end{table}
+
+\subsection{ROAS per paid channel}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r r r r r}
+\toprule
+\textbf{Channel} & \textbf{Spend} & \textbf{Contribution} & \textbf{ROAS} & \textbf{5\%} & \textbf{95\%} \\
+\midrule
+Search  & 3\,408\,574 & 2\,653\,607 & 0.78 & 0.16 & 1.78 \\
+TikTok  & 5\,036\,740 & 2\,959\,744 & 0.59 & 0.12 & 1.30 \\
+YouTube & 3\,226\,745 & 1\,371\,148 & 0.43 & 0.21 & 0.67 \\
+Meta    & 7\,950\,251 & 3\,028\,701 & 0.38 & 0.05 & 0.97 \\
+Display & 2\,260\,398 & 803\,784    & 0.36 & 0.02 & 1.33 \\
+\bottomrule
+\end{tabular}
+\caption{ROAS per paid channel with posterior mean and 90\% credible interval. Wide intervals reflect the identification challenge on a 156-week panel with correlated always-on spend.}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/03_roas.png}
+\caption{Posterior mean ROAS per channel with 90\% credible interval. The dashed line marks the break-even point.}
+\end{figure}
+
+\section{What the model shows}
+
+The Bayesian MMM in Stan fits weekly revenue well ($R^2 = 0.87$, MAPE
+$4.4\%$) and recovers all 15 channel-level ground-truth parameters
+inside their 90\% credible intervals. Baseline plus trend explain
+about $79\%$ of revenue, which is realistic for retail MMM where
+brand and organic demand carry most of the sales.
+
+The main honest weakness is interval width. Posterior means are close
+to ground truth on average, but individual parameter intervals span
+factors of two or more. This is the fundamental identification
+challenge of MMM: three years of weekly data with correlated
+always-on channel spend gives the model limited independent variation
+to separate channel-level effects from each other and from trend.
+
+Solutions in the rest of the portfolio:
+\begin{itemize}
+\item Calibration against a geo-lift experiment tightens one channel's
+posterior via an informative prior (Project 2).
+\item Time-varying coefficients allow channel effectiveness to drift,
+which is more realistic than a fixed alpha over three years (Project 3).
+\item Bayesian Synthetic Control and BSDID provide the underlying
+geo-lift estimator whose posterior feeds back into calibration
+(Project 4).
+\end{itemize}
+
+\section{Limitations}
+
+\begin{itemize}
+\item Synthetic data. The ground-truth generator is stylised. Real
+retail data has more complex patterns (promos, stockouts, cross-
+category cannibalisation).
+\item In-sample fit only. No out-of-time validation.
+\item Static coefficients. Channel effectiveness assumed constant over
+three years. Project 3 relaxes this.
+\item No calibration to lift tests. Project 2 adds this.
+\item No cross-channel interaction terms. YouTube-drives-search and
+similar effects are not modelled.
+\end{itemize}
+
+\section{References}
+
+\begin{itemize}
+\item Jin, Wang, Sun, Chan, Koehler (2017).
+\emph{Bayesian Methods for Media Mix Modeling with Carryover and Shape
+Effects}, Google. Foundational paper for adstock and Hill saturation
+in Bayesian MMM.
+\item Meta, \emph{Robyn: Semi-Automated MMM}.
+\href{https://github.com/facebookexperimental/Robyn}{github.com/facebookexperimental/Robyn}.
+\item Google, \emph{Meridian}. \href{https://github.com/google/meridian}{github.com/google/meridian}.
+\end{itemize}
+
+\end{document}

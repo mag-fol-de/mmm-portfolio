@@ -1,25 +1,37 @@
 """Fit the Bayesian MMM in Stan, run diagnostics, plot decomposition and ROAS.
 
-Run with: uv run python fit_mmm.py
-
-Requires cmdstan installed once:
-    uv run python -c "from cmdstanpy import install_cmdstan; install_cmdstan()"
+Sets CMDSTAN and PATH for local cmdstan + RTools40 toolchain.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-import arviz as az
+os.environ.setdefault("CMDSTAN", r"D:\cmdstan\cmdstan-2.39.0")
+_TBB = r"D:\cmdstan\cmdstan-2.39.0\stan\lib\stan_math\lib\tbb"
+_RT_USR = r"D:\rtools40\usr\bin"
+_RT_MGW = r"D:\rtools40\mingw64\bin"
+_extra = ";".join([_TBB, _RT_USR, _RT_MGW])
+if _extra not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = _extra + ";" + os.environ.get("PATH", "")
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from cmdstanpy import CmdStanModel
 
+ROOT = Path(__file__).resolve().parent
+FIG = ROOT / "figures"
+OUT = ROOT / "samples"
+FIG.mkdir(exist_ok=True)
+OUT.mkdir(exist_ok=True)
+
 # -----------------------------------------------------------------------------
 # 1. Load data
 # -----------------------------------------------------------------------------
-df = pd.read_csv("data/marketing_data.csv", parse_dates=["DATE"]).sort_values("DATE")
-gt = pd.read_csv("data/ground_truth.csv")
+df = pd.read_csv(ROOT / "data" / "marketing_data.csv",
+                 parse_dates=["DATE"]).sort_values("DATE").reset_index(drop=True)
+gt = pd.read_csv(ROOT / "data" / "ground_truth.csv")
 
 paid_channels = ["search_S", "meta_S", "tiktok_S", "youtube_S", "display_S"]
 channel_names = [c.replace("_S", "") for c in paid_channels]
@@ -37,114 +49,100 @@ stan_data = {
     "X_nl": df["newsletter"].to_numpy(),
     "competitor": df["competitor_sales"].to_numpy(),
     "events": df["events"].astype(int).tolist(),
-    "t_idx": t_idx,
-    "s_cos": s_cos,
-    "s_sin": s_sin,
+    "t_idx": t_idx.tolist(),
+    "s_cos": s_cos.tolist(),
+    "s_sin": s_sin.tolist(),
     "revenue": df["revenue"].to_numpy(),
 }
 
 # -----------------------------------------------------------------------------
 # 2. Compile + sample
 # -----------------------------------------------------------------------------
-print("Compiling Stan model")
-model = CmdStanModel(stan_file="stan/mmm.stan")
+print("Compiling Stan model...")
+model = CmdStanModel(stan_file=str(ROOT / "stan" / "mmm.stan"))
 
-print("Sampling")
+print("Sampling...")
 fit = model.sample(
-    data=stan_data,
-    chains=4,
-    parallel_chains=4,
-    iter_warmup=1000,
-    iter_sampling=1000,
-    seed=42,
-    show_progress=True,
-    adapt_delta=0.95,
-    max_treedepth=12,
+    data=stan_data, chains=4, parallel_chains=4,
+    iter_warmup=1000, iter_sampling=1000, seed=42,
+    show_progress=False, adapt_delta=0.95, max_treedepth=12,
 )
-
 print(fit.diagnose())
 
-idata = az.from_cmdstanpy(
-    posterior=fit,
-    posterior_predictive=["revenue_pred"],
-    observed_data={"revenue": stan_data["revenue"]},
-)
-
-Path("samples").mkdir(exist_ok=True)
-idata.to_netcdf("samples/posterior.nc")
-
-# -----------------------------------------------------------------------------
-# 3. Diagnostics
-# -----------------------------------------------------------------------------
-summary = az.summary(
-    idata,
-    var_names=["alpha_max", "lambda", "K", "alpha_nl", "lambda_nl", "K_nl",
-               "beta0", "beta_trend", "beta_cos", "beta_sin",
-               "beta_comp", "beta_ev", "sigma"],
-    round_to=3,
-)
-print(summary)
-
-print(f"\nMax R-hat: {summary['r_hat'].max():.4f}")
-print(f"Min ESS bulk: {summary['ess_bulk'].min():.0f}")
-
-# -----------------------------------------------------------------------------
-# 4. Calibration vs ground truth
-# -----------------------------------------------------------------------------
 post = fit.stan_variables()
 
-print("\nCalibration table (posterior mean and 90% CI vs ground truth):")
-print(f"{'Channel':<10}{'Param':<12}{'True':>10}{'Mean':>10}{'5%':>10}{'95%':>10}")
-print("-" * 62)
+# -----------------------------------------------------------------------------
+# 3. Parameter recovery vs ground truth
+# -----------------------------------------------------------------------------
+print("\nParameter recovery (posterior mean, 90% CI, ground truth):")
+print(f"{'Channel':<10}{'Param':<12}{'True':>10}{'Mean':>10}{'5%':>10}{'95%':>10}  Covers")
+print("-" * 72)
 
+recovery_rows = []
 for i, ch in enumerate(channel_names):
     gt_row = gt[gt["channel"] == ch].iloc[0]
-    for param_key, gt_key in [("alpha_max", "alpha_max"),
-                               ("lambda", "lambda"),
-                               ("K", "K")]:
+    for param_key in ["alpha_max", "lambda", "K"]:
         samples = post[param_key][:, i]
         mean = samples.mean()
         lo, hi = np.percentile(samples, [5, 95])
-        true_val = gt_row[gt_key]
-        flag = " " if lo <= true_val <= hi else "*"
+        true_val = float(gt_row[param_key])
+        covers = lo <= true_val <= hi
+        flag = "yes" if covers else "NO"
         print(f"{ch:<10}{param_key:<12}{true_val:>10.3f}{mean:>10.3f}"
               f"{lo:>10.3f}{hi:>10.3f}  {flag}")
+        recovery_rows.append(dict(
+            channel=ch, param=param_key, true=true_val,
+            mean=mean, p05=lo, p95=hi, covers=covers,
+        ))
+
+pd.DataFrame(recovery_rows).to_csv(OUT / "parameter_recovery.csv", index=False)
 
 # -----------------------------------------------------------------------------
-# 5. Posterior predictive plot
+# 4. Model fit
 # -----------------------------------------------------------------------------
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(df["DATE"], df["revenue"], color="steelblue", label="Actual", lw=1.8)
-
 mu_post = post["mu"]
 mu_mean = mu_post.mean(axis=0)
-mu_lo, mu_hi = np.percentile(mu_post, [5, 95], axis=0)
+resid = df["revenue"].to_numpy() - mu_mean
+ss_res = float(np.sum(resid ** 2))
+ss_tot = float(np.sum((df["revenue"] - df["revenue"].mean()) ** 2))
+r2 = 1 - ss_res / ss_tot
+rmse = float(np.sqrt(np.mean(resid ** 2)))
+mae = float(np.mean(np.abs(resid)))
+mape = float(np.mean(np.abs(resid) / df["revenue"].to_numpy()))
 
-ax.plot(df["DATE"], mu_mean, color="darkorange", label="Posterior mean", lw=1.6)
-ax.fill_between(df["DATE"], mu_lo, mu_hi, alpha=0.25, color="darkorange",
-                label="90% CI")
-ax.set_title("Actual vs modelled revenue")
+print(f"\nModel fit:")
+print(f"  R^2:  {r2:.4f}")
+print(f"  RMSE: {rmse:,.0f}")
+print(f"  MAE:  {mae:,.0f}")
+print(f"  MAPE: {mape:.3%}")
+
+# -----------------------------------------------------------------------------
+# 5. Actual vs modelled
+# -----------------------------------------------------------------------------
+plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 120})
+fig, ax = plt.subplots(figsize=(12, 5))
+mu_lo, mu_hi = np.percentile(mu_post, [5, 95], axis=0)
+ax.plot(df["DATE"], df["revenue"], color="steelblue", label="Actual", lw=1.8)
+ax.plot(df["DATE"], mu_mean, color="darkorange", label="Posterior mean", lw=1.4)
+ax.fill_between(df["DATE"], mu_lo, mu_hi, alpha=0.25, color="darkorange", label="90% CI")
+ax.set_title(f"Actual vs modelled revenue (R^2 = {r2:.3f})")
 ax.set_ylabel("Revenue (SEK)")
 ax.legend()
-plt.tight_layout()
-plt.savefig("figures/01_actual_vs_modeled.png", dpi=120)
-plt.close()
+plt.tight_layout(); plt.savefig(FIG / "01_actual_vs_modeled.png"); plt.close()
 
 # -----------------------------------------------------------------------------
-# 6. Decomposition (posterior mean of per-driver contribution)
+# 6. Revenue decomposition
 # -----------------------------------------------------------------------------
-contrib_post = post["contribution"]  # shape (draws, N, C)
-contrib_mean = contrib_post.mean(axis=0)  # (N, C)
+contrib_post = post["contribution"]              # (draws, N, C)
+contrib_mean = contrib_post.mean(axis=0)         # (N, C)
 
 decomp = pd.DataFrame(contrib_mean, columns=channel_names, index=df["DATE"])
 decomp["Baseline"] = post["beta0"].mean()
 decomp["Trend"]    = post["beta_trend"].mean() * t_idx
-decomp["Season"]   = (post["beta_cos"].mean() * s_cos
-                     + post["beta_sin"].mean() * s_sin)
+decomp["Season"]   = post["beta_cos"].mean() * s_cos + post["beta_sin"].mean() * s_sin
 decomp["Competitor"] = post["beta_comp"].mean() * df["competitor_sales"].to_numpy()
-decomp["Events"]    = post["beta_ev"].mean() * df["events"].to_numpy()
-decomp["Newsletter"] = (post["alpha_nl"].mean()
-                        * post["nl_sat"].mean(axis=0))
+decomp["Events"]     = post["beta_ev"].mean() * df["events"].to_numpy()
+decomp["Newsletter"] = post["alpha_nl"].mean() * post["nl_sat"].mean(axis=0)
 
 fig, ax = plt.subplots(figsize=(13, 6))
 plot_order = ["Baseline", "Trend", "Season", "Competitor",
@@ -159,67 +157,70 @@ ax.axhline(0, color="black", lw=0.6)
 ax.set_title("Revenue decomposition over time (posterior mean per driver)")
 ax.set_ylabel("Revenue contribution (SEK)")
 ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0))
-plt.tight_layout()
-plt.savefig("figures/02_decomposition.png", dpi=120)
-plt.close()
+plt.tight_layout(); plt.savefig(FIG / "02_decomposition.png"); plt.close()
 
-# Total contribution per driver (3 years)
+# Attribution totals
 totals = decomp.sum().sort_values(ascending=False)
 total_rev = df["revenue"].sum()
 attribution = pd.DataFrame({
-    "contribution": totals,
-    "share_of_revenue_pct": (totals / total_rev * 100).round(1),
+    "driver": totals.index,
+    "contribution": totals.values,
+    "share_pct": (totals.values / total_rev * 100).round(2),
 })
-print("\nAttribution over the full period:")
-print(attribution)
+attribution.to_csv(OUT / "attribution.csv", index=False)
+print("\nAttribution (posterior mean):")
+print(attribution.to_string(index=False))
 
 # -----------------------------------------------------------------------------
-# 7. ROAS with credible intervals
+# 7. ROAS per paid channel with 90% CI
 # -----------------------------------------------------------------------------
 print("\nROAS per paid channel:")
-print(f"{'Channel':<10}{'Spend':>14}{'Contrib mean':>16}"
-      f"{'ROAS mean':>12}{'ROAS 5%':>10}{'ROAS 95%':>10}")
+print(f"{'Channel':<10}{'Spend':>14}{'Contribution':>16}{'ROAS mean':>12}{'ROAS 5%':>10}{'ROAS 95%':>10}")
 print("-" * 72)
 
 roas_rows = []
 for i, ch in enumerate(channel_names):
-    spend_total = df[paid_channels[i]].sum()
-    contrib_total_draws = contrib_post[:, :, i].sum(axis=1)
+    spend_total = float(df[paid_channels[i]].sum())
+    contrib_total_draws = contrib_post[:, :, i].sum(axis=1)     # (draws,)
     roas_draws = contrib_total_draws / spend_total
-    roas_mean = roas_draws.mean()
+    roas_mean = float(roas_draws.mean())
     roas_lo, roas_hi = np.percentile(roas_draws, [5, 95])
-    contrib_mean_total = contrib_total_draws.mean()
+    contrib_mean_total = float(contrib_total_draws.mean())
     print(f"{ch:<10}{spend_total:>14,.0f}{contrib_mean_total:>16,.0f}"
           f"{roas_mean:>12.3f}{roas_lo:>10.3f}{roas_hi:>10.3f}")
-    roas_rows.append({
-        "channel": ch,
-        "spend": spend_total,
-        "contribution_mean": contrib_mean_total,
-        "roas_mean": roas_mean,
-        "roas_low": roas_lo,
-        "roas_high": roas_hi,
-    })
+    roas_rows.append(dict(
+        channel=ch, spend=spend_total, contribution=contrib_mean_total,
+        roas_mean=roas_mean, roas_low=float(roas_lo), roas_high=float(roas_hi),
+    ))
 
-roas_df = pd.DataFrame(roas_rows).sort_values("roas_mean", ascending=True)
+roas_df = pd.DataFrame(roas_rows).sort_values("roas_mean")
+roas_df.to_csv(OUT / "roas.csv", index=False)
 
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.errorbar(roas_df["roas_mean"], roas_df["channel"],
             xerr=[roas_df["roas_mean"] - roas_df["roas_low"],
                   roas_df["roas_high"] - roas_df["roas_mean"]],
-            fmt="o", color="darkgreen", capsize=4)
+            fmt="o", color="darkgreen", capsize=4, markersize=8)
 ax.axvline(1.0, color="black", linestyle="--", lw=0.8, label="ROAS = 1")
 ax.set_title("ROAS by paid channel (posterior mean, 90% CI)")
 ax.set_xlabel("Revenue per krona spent")
 ax.legend()
-plt.tight_layout()
-plt.savefig("figures/03_roas.png", dpi=120)
-plt.close()
+plt.tight_layout(); plt.savefig(FIG / "03_roas.png"); plt.close()
 
 # -----------------------------------------------------------------------------
-# 8. Save outputs
+# 8. Metrics summary
 # -----------------------------------------------------------------------------
-summary.to_csv("samples/posterior_summary.csv")
-attribution.to_csv("samples/attribution.csv")
-roas_df.to_csv("samples/roas.csv", index=False)
+pd.Series({
+    "R2": r2, "RMSE": rmse, "MAE": mae, "MAPE": mape,
+    "n_weeks": N, "n_channels": C,
+    "coverage_alpha_max": sum(1 for r in recovery_rows
+                              if r["param"] == "alpha_max" and r["covers"]),
+    "coverage_lambda":    sum(1 for r in recovery_rows
+                              if r["param"] == "lambda" and r["covers"]),
+    "coverage_K":         sum(1 for r in recovery_rows
+                              if r["param"] == "K" and r["covers"]),
+}).to_csv(OUT / "metrics.csv")
 
-print("\nDone. Outputs in samples/ and figures/.")
+print(f"\nFigures written to {FIG}")
+print(f"Tables written to {OUT}")
+print("Done.")
