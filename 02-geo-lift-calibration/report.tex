@@ -1,0 +1,189 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{everypage}
+\usepackage{background}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+\definecolor{bordercolor}{RGB}{68,94,114}
+
+\backgroundsetup{
+  scale=0.96, color=bordercolor, opacity=0.5, angle=0,
+  position=current page.center,
+  contents={\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width=4pt, color=bordercolor]
+      (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}}
+}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+\vspace*{3cm}
+{\Huge\bfseries Geo-Lift Calibration\\\bigskip
+\LARGE Turning an Experiment Posterior into an MMM Prior
+\par}
+\vspace{1.5cm}
+{\Large Magnus Foldeström\par}
+\vfill
+\end{titlepage}
+
+\section{What this project does}
+
+MMM channel coefficients are notoriously weakly identified because
+paid channel spend is highly correlated across always-on channels.
+The industry-standard fix is calibration against an incrementality
+experiment. This project runs the full loop:
+
+\begin{enumerate}
+\item Fit a Bayesian model to a synthetic geo-lift experiment,
+recovering the incremental ROAS of Meta with proper uncertainty.
+\item Translate that posterior into an informative Normal prior on
+Meta's $\alpha_{\max}$ in the MMM.
+\item Refit the MMM with and without the calibration prior, and
+measure how much the Meta posterior tightens.
+\end{enumerate}
+
+\section{Data}
+
+\textbf{Geo-lift experiment.} Two regions (A and B) over a treatment
+window. Region A gets a Meta spend boost, region B is control. The
+increment in revenue attributable to the boost gives the incremental
+ROAS. Ground-truth Meta ROAS in the generator is $0.55$.
+
+\textbf{MMM panel.} 156 weeks of national-level weekly spend and
+revenue with the same five paid channels used in project 1. Ground-
+truth $\alpha_{\max}$ for Meta is $35\,000$ SEK.
+
+\section{Methodology}
+
+\subsection{Step 1: Bayesian geo-lift}
+
+For each geo-week observation $i$ in region $r$, revenue is modelled
+as
+$$\text{revenue}_i \sim \mathcal{N}\!\big(\mu_{r(i)} + \gamma \cdot \text{baseline\_meta}_i + \text{lift} \cdot \text{extra\_meta}_i,\ \sigma^2\big)$$
+where $\text{lift}$ is the incremental ROAS on the Meta boost. Priors
+are wide (HalfNormal on $\text{lift}$ and $\sigma$, Normal on region
+means and $\gamma$).
+
+The posterior on $\text{lift}$ is what carries into step 2.
+
+\subsection{Step 2: Prior translation}
+
+The lift posterior is a distribution on revenue per krona spent. To
+inject it as a prior on $\alpha_{\max, \text{Meta}}$ in the MMM, we
+translate scale:
+$$\alpha_{\max, \text{Meta}} \sim \mathcal{N}\!\big(\bar{\ell} \cdot \bar{s} \cdot 1.4,\ \text{sd}(\ell) \cdot \bar{s} \cdot 3.0\big)$$
+where $\bar{\ell}$ and $\text{sd}(\ell)$ are the posterior mean and
+standard deviation of the lift, $\bar{s}$ is Meta's mean weekly
+spend, and the multipliers $1.4$ and $3.0$ convert per-krona-spend
+into a channel-max effect (accounting for adstock accumulation and
+saturation ceiling) plus a widening factor that keeps the prior
+weakly informative rather than dogmatic.
+
+\subsection{Step 3: MMM refit}
+
+Two versions of the same MMM are fitted. The calibrated version uses
+the informative prior on $\alpha_{\max, \text{Meta}}$. The
+uncalibrated baseline uses a wide default prior
+$\mathcal{N}(30\,000, 30\,000)$. All other parameters are identical.
+
+\section{Results}
+
+\subsection{Geo-lift posterior}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{figures/02_lift_posterior.png}
+\caption{Posterior distribution of Meta's incremental ROAS from the geo-lift experiment. Dashed line is the ground truth of $0.55$.}
+\end{figure}
+
+The geo-lift posterior brackets the true incremental ROAS. This is
+the input to the calibration.
+
+\subsection{MMM calibrated vs uncalibrated}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r r r r c}
+\toprule
+\textbf{Model} & \textbf{Mean} & \textbf{5\%} & \textbf{95\%} & \textbf{CI width} & \textbf{Contains truth?} \\
+\midrule
+Truth        & 35\,000 & --      & --      & --      & -- \\
+Uncalibrated & 29\,117 & 4\,613  & 60\,366 & 55\,753 & yes \\
+Calibrated   & 39\,898 & 32\,997 & 46\,310 & \textbf{13\,313} & yes \\
+\bottomrule
+\end{tabular}
+\caption{Meta $\alpha_{\max}$ posterior comparison. The calibrated model has a 76\% narrower interval and both models contain the true value.}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/01_meta_calibration.png}
+\caption{Meta $\alpha_{\max}$ posterior: uncalibrated (blue) is wide and diffuse; calibrated (orange) is concentrated. Both track the truth (dashed line).}
+\end{figure}
+
+\section{What this shows}
+
+The uncalibrated MMM identifies Meta's max effect only up to a wide
+interval spanning $4\,613$ to $60\,366$. This is what happens when
+weekly spend on Meta is correlated with Search, TikTok, and YouTube:
+the multivariate regression cannot cleanly separate their effects
+from each other.
+
+Adding an informative prior derived from an incrementality experiment
+tightens the posterior interval by 76\%. The mean shifts from
+$29\,117$ (below truth) to $39\,898$ (slightly above truth), and the
+uncertainty around it becomes actionable: risk-based budget
+recommendations built on the calibrated version have real teeth.
+
+This is exactly the mechanism modern MMM SaaS platforms rely on:
+experiments are expensive to run, but each one bought you tightens
+one channel of the MMM permanently and gives calibrated ROAS instead
+of a wide posterior nobody can act on.
+
+\section{Limitations}
+
+\begin{itemize}
+\item Synthetic data. The generator embeds a clean lift structure
+that real geo-lifts rarely have.
+\item Only Meta is calibrated. In practice one runs several lift
+tests over time and calibrates each channel independently.
+\item Static coefficients. Meta's effectiveness assumed constant over
+the panel. Time-varying MMM in project 3 relaxes this.
+\item Two-region experiment only. Real geo-lifts use many regions and
+a Bayesian synthetic control approach; project 4 covers that.
+\item Prior translation heuristic. The multipliers $1.4$ and $3.0$
+are hand-picked. A production system would derive them from the
+adstock and saturation shape or match moments more carefully.
+\end{itemize}
+
+\section{References}
+
+\begin{itemize}
+\item Chan, D., Jin, Y., Koehler, J., Perry, M., Wang, Y. (2017).
+Google's calibration paper on translating incrementality experiments
+into MMM priors.
+\item Jin, Wang, Sun, Chan, Koehler (2017). \emph{Bayesian Methods for
+Media Mix Modeling with Carryover and Shape Effects}, Google.
+\item Robyn documentation on lift-test calibration:
+\href{https://github.com/facebookexperimental/Robyn}{github.com/facebookexperimental/Robyn}.
+\end{itemize}
+
+\end{document}
