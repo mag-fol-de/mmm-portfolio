@@ -1,0 +1,7 @@
+param,value
+N,21.0
+T,40.0
+T0,30.0
+treated_unit,0.0
+true_tau,25000.0
+noise_sigma,8000.0

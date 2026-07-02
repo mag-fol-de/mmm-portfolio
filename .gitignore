@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Stan compiled binaries
+*.exe
+*.hpp
+*.o
+samples/
+
+# Data warehouses (regenerable from CSV)
+*.duckdb
+*.duckdb.wal
+
+# uv lockfile artifacts (keep uv.lock, ignore rest)
+.uv/
+
+# Personal task briefs, not for public repo
+TASK.pdf

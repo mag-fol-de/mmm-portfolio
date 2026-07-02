@@ -1,0 +1,5 @@
+channel,lambda,K,alpha_max
+meta,0.3,60000,35000
+tiktok,0.25,40000,28000
+youtube,0.4,50000,32000
+display,0.2,30000,15000

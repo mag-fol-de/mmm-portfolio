@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+
+# Stan / cmdstanpy compiled artifacts
+stan/*.exe
+stan/*.hpp
+stan/*.o
+*.stan.compiled
+output/
+
+# Posterior samples (large)
+samples/
