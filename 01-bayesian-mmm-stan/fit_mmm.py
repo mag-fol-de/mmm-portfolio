@@ -121,10 +121,16 @@ print(f"  MAPE: {mape:.3%}")
 # -----------------------------------------------------------------------------
 plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 120})
 fig, ax = plt.subplots(figsize=(12, 5))
-mu_lo, mu_hi = np.percentile(mu_post, [5, 95], axis=0)
+# Posterior predictive interval on revenue: uses revenue_pred = Normal(mu, sigma)
+# so the band captures BOTH parameter uncertainty AND observation noise, not
+# only the credible interval on the mean.
+revenue_pred_post = post["revenue_pred"]                       # (draws, N)
+pred_lo, pred_hi = np.percentile(revenue_pred_post, [5, 95], axis=0)
+coverage = float(((df["revenue"].to_numpy() >= pred_lo) & (df["revenue"].to_numpy() <= pred_hi)).mean())
 ax.plot(df["DATE"], df["revenue"], color="steelblue", label="Actual", lw=1.8)
 ax.plot(df["DATE"], mu_mean, color="darkorange", label="Posterior mean", lw=1.4)
-ax.fill_between(df["DATE"], mu_lo, mu_hi, alpha=0.25, color="darkorange", label="90% CI")
+ax.fill_between(df["DATE"], pred_lo, pred_hi, alpha=0.25, color="darkorange",
+                label=f"90% posterior predictive interval ({coverage:.0%} coverage)")
 ax.set_title(f"Actual vs modelled revenue (R^2 = {r2:.3f})")
 ax.set_ylabel("Revenue (SEK)")
 ax.legend()
