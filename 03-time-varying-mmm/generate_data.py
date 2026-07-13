@@ -45,15 +45,15 @@ def adstock(x, decay):
 def saturate(x, K):
     return x / (K + x)
 
-LAMBDA = {"search": 0.10, "meta": 0.30, "tiktok": 0.25,
-          "youtube": 0.40, "display": 0.20}
-K = {"search": 20_000, "meta": 60_000, "tiktok": 40_000,
-     "youtube": 50_000, "display": 30_000}
+LAMBDA = {"search": 0.20, "meta": 0.35, "tiktok": 0.25,
+          "youtube": 0.45, "display": 0.20}
+K = {"search": 15_000, "meta": 60_000, "tiktok": 40_000,
+     "youtube": 30_000, "display": 20_000}
 
-# Time-varying alpha_max for Search: linear ramp from 18k to 38k.
-# Other channels: fixed.
-alpha_max_search_t = np.linspace(18_000, 38_000, n)
-ALPHA_FIXED = {"meta": 35_000, "tiktok": 28_000, "youtube": 32_000, "display": 15_000}
+# Time-varying alpha_max for Search: linear ramp from 90k to 200k.
+# Other channels: fixed at realistic industry ROAS levels.
+alpha_max_search_t = np.linspace(90_000, 200_000, n)
+ALPHA_FIXED = {"meta": 220_000, "tiktok": 150_000, "youtube": 65_000, "display": 32_000}
 
 search_ad  = adstock(search_S,  LAMBDA["search"])
 meta_ad    = adstock(meta_S,    LAMBDA["meta"])

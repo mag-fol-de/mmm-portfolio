@@ -89,8 +89,8 @@ model {
   beta_ev    ~ normal(0, 50000);
 
   lambda    ~ beta(2, 4);                // adstock decay, mild prior favoring < 0.5
-  K         ~ normal(40000, 40000);      // half-normal via <lower=0> constraint
-  alpha_max ~ normal(30000, 30000);      // half-normal via <lower=0> constraint
+  K         ~ normal(50000, 60000);      // half-normal via <lower=0> constraint
+  alpha_max ~ normal(120000, 120000);    // half-normal, wide to allow ROAS > 1 solutions
 
   alpha_nl  ~ normal(6000, 5000);
   lambda_nl ~ beta(2, 4);

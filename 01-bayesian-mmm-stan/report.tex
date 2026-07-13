@@ -81,19 +81,75 @@ Display & 15\,000 & 0.20 & 30\,000 \\
 \caption{Ground-truth parameters embedded in the synthetic generator. The model attempts to recover these from revenue and spend alone.}
 \end{table}
 
-\section{The model}
+\section{Model specification}
 
-For each channel $c$, raw weekly spend $x_{c,t}$ is transformed by
-geometric adstock and Hill saturation:
-$$\text{Ad}_{c,t} = x_{c,t} + \lambda_c \cdot \text{Ad}_{c,t-1}, \qquad \text{Sat}_{c,t} = \frac{\text{Ad}_{c,t}}{K_c + \text{Ad}_{c,t}}$$
-Revenue is modelled as
-$$\text{revenue}_t \sim \mathcal{N}\big(\mu_t, \sigma^2\big)$$
-$$\mu_t = \beta_0 + \beta_{\text{trend}} t + \beta_{\cos} S_c(t) + \beta_{\sin} S_s(t) + \beta_{\text{comp}} c_t + \beta_{\text{ev}} e_t + \alpha_{\text{nl}} \text{Sat}_{\text{nl},t} + \sum_{c} \alpha_{\max,c} \text{Sat}_{c,t}$$
+\subsection{Channel transforms}
 
-Priors are weakly informative: $\lambda_c \sim \text{Beta}(2, 4)$
-(favouring shorter memory), $K_c \sim \text{HalfNormal}(40{,}000)$,
-$\alpha_{\max,c} \sim \text{HalfNormal}(30{,}000)$, and standard
-Normal priors on the regression coefficients.
+For each paid channel $c \in \{\text{search, meta, tiktok, youtube, display}\}$, raw
+weekly spend $x_{c,t}$ is passed through two nonlinear transforms:
+
+\textbf{Geometric adstock} (carry-over):
+$$\text{Ad}_{c,t} = x_{c,t} + \lambda_c \cdot \text{Ad}_{c,t-1}, \quad \text{Ad}_{c,1} = x_{c,1}$$
+
+\textbf{Hill saturation} (diminishing returns):
+$$\text{Sat}_{c,t} = \frac{\text{Ad}_{c,t}}{K_c + \text{Ad}_{c,t}}$$
+
+The newsletter follows the same two-step pipeline with parameters
+$\lambda_{\text{nl}}$ and $K_{\text{nl}}$.
+
+\subsection{Regression function}
+
+The weekly revenue mean $\mu_t$ is a linear combination of the
+transformed marketing terms and additive controls:
+$$\mu_t = \beta_0 + \beta_{\text{trend}} \, t + \beta_{\cos} \cos\!\left(\tfrac{2\pi t}{52}\right) + \beta_{\sin} \sin\!\left(\tfrac{2\pi t}{52}\right) + \beta_{\text{comp}} c_t + \beta_{\text{ev}} e_t + \alpha_{\text{nl}} \, \text{Sat}_{\text{nl}, t} + \sum_{c} \alpha_{\max, c} \, \text{Sat}_{c, t}$$
+
+where $c_t$ is competitor sales in week $t$ and $e_t \in \{0, 1\}$ is
+the holiday flag.
+
+\subsection{Likelihood}
+
+$$\text{revenue}_t \sim \mathcal{N}(\mu_t, \sigma^2), \quad t = 1, \ldots, N$$
+
+\subsection{Priors}
+
+\textbf{Control coefficients:}
+$$\beta_0 \sim \mathcal{N}(250{,}000,\, 80{,}000^2), \quad \beta_{\text{trend}} \sim \mathcal{N}(0,\, 500^2)$$
+$$\beta_{\cos}, \beta_{\sin}, \beta_{\text{ev}} \sim \mathcal{N}(0,\, 50{,}000^2), \quad \beta_{\text{comp}} \sim \mathcal{N}(0,\, 1)$$
+
+\textbf{Adstock decays} (mildly favour short memory):
+$$\lambda_c, \lambda_{\text{nl}} \sim \text{Beta}(2, 4)$$
+
+\textbf{Saturation half-points and channel scales} (half-Normal via lower-bound at 0):
+$$K_c \sim \mathcal{N}^{+}(50{,}000,\, 60{,}000^2), \quad \alpha_{\max, c} \sim \mathcal{N}^{+}(120{,}000,\, 120{,}000^2)$$
+$$K_{\text{nl}} \sim \mathcal{N}^{+}(5{,}000,\, 5{,}000^2), \quad \alpha_{\text{nl}} \sim \mathcal{N}^{+}(6{,}000,\, 5{,}000^2)$$
+
+\textbf{Observation noise:}
+$$\sigma \sim \mathcal{N}^{+}(0,\, 30{,}000^2)$$
+
+Notation: $\mathcal{N}^{+}(m, s^2)$ denotes a Normal with mean $m$ and
+standard deviation $s$ constrained to positive values (half-Normal
+when $m=0$, truncated Normal otherwise).
+
+\subsection{Posterior}
+
+Let $\theta = (\beta_\cdot, \lambda_\cdot, K_\cdot, \alpha_\cdot, \sigma)$ collect all parameters.
+By Bayes's rule the joint posterior is proportional to prior times
+likelihood:
+$$p(\theta \mid \text{revenue}) \; \propto \; p(\theta) \; \prod_{t=1}^{N} \mathcal{N}(\text{revenue}_t \mid \mu_t(\theta), \sigma^2)$$
+
+The posterior has no closed form because $\mu_t$ is nonlinear in
+$(\lambda, K, \alpha_{\max})$ through the adstock recursion and Hill
+transform, so we approximate it by MCMC draws.
+
+\subsection{Posterior predictive}
+
+The uncertainty band on revenue plots is the posterior predictive
+distribution, which pushes parameter uncertainty through the
+likelihood:
+$$p(\tilde{y}_t \mid \text{revenue}) = \int \mathcal{N}(\tilde{y}_t \mid \mu_t(\theta), \sigma^2) \, p(\theta \mid \text{revenue}) \, d\theta$$
+
+Draws are obtained by sampling $\tilde{y}_t^{(s)} \sim \mathcal{N}(\mu_t^{(s)}, {\sigma^{(s)}}^2)$
+for each posterior draw $s$.
 
 \section{Inference}
 
@@ -112,10 +168,10 @@ $\widehat{R} \approx 1$, ESS satisfactory.
 \toprule
 \textbf{Metric} & \textbf{Value} \\
 \midrule
-$R^2$      & \textbf{0.873} \\
-RMSE       & 17\,572 SEK \\
-MAE        & 14\,360 SEK \\
-MAPE       & \textbf{4.4\%} \\
+$R^2$      & \textbf{0.775} \\
+RMSE       & 22\,267 SEK \\
+MAE        & 17\,640 SEK \\
+MAPE       & \textbf{2.4\%} \\
 \bottomrule
 \end{tabular}
 \caption{In-sample fit metrics on the 156-week panel.}
@@ -142,21 +198,21 @@ identification horizon.
 \toprule
 \textbf{Channel} & \textbf{Param} & \textbf{True} & \textbf{Mean} & \textbf{5\%} & \textbf{95\%} & \textbf{Covers} \\
 \midrule
-Search  & $\alpha_{\max}$ & 25\,000 & 39\,658 & 9\,361 & 73\,308 & yes \\
-Search  & $\lambda$       & 0.100   & 0.301  & 0.071 & 0.579  & yes \\
-Search  & $K$             & 20\,000 & 52\,840 & 8\,107 & 109\,328 & yes \\
-Meta    & $\alpha_{\max}$ & 35\,000 & 29\,219 & 4\,476 & 60\,940 & yes \\
-Meta    & $\lambda$       & 0.300   & 0.293  & 0.063 & 0.594  & yes \\
-Meta    & $K$             & 60\,000 & 47\,217 & 5\,233 & 105\,721 & yes \\
-TikTok  & $\alpha_{\max}$ & 28\,000 & 37\,107 & 8\,443 & 67\,999 & yes \\
-TikTok  & $\lambda$       & 0.250   & 0.310  & 0.077 & 0.582  & yes \\
-TikTok  & $K$             & 40\,000 & 54\,411 & 7\,779 & 112\,621 & yes \\
-YouTube & $\alpha_{\max}$ & 32\,000 & 32\,244 & 13\,903 & 54\,678 & yes \\
-YouTube & $\lambda$       & 0.400   & 0.210  & 0.051 & 0.416  & yes \\
-YouTube & $K$             & 50\,000 & 63\,275 & 15\,956 & 116\,774 & yes \\
-Display & $\alpha_{\max}$ & 15\,000 & 12\,445 & 844   & 36\,742 & yes \\
-Display & $\lambda$       & 0.200   & 0.350  & 0.085 & 0.683  & yes \\
-Display & $K$             & 30\,000 & 55\,332 & 2\,179 & 118\,122 & yes \\
+Search  & $\alpha_{\max}$ & 150\,000 & 168\,155 & 53\,995  & 287\,813 & yes \\
+Search  & $\lambda$       & 0.200   & 0.254   & 0.067  & 0.476   & yes \\
+Search  & $K$             & 15\,000 & 73\,348  & 11\,895 & 151\,469 & yes \\
+Meta    & $\alpha_{\max}$ & 220\,000 & 211\,054 & 121\,219 & 306\,417 & yes \\
+Meta    & $\lambda$       & 0.350   & 0.278   & 0.104  & 0.449   & yes \\
+Meta    & $K$             & 60\,000 & 59\,604  & 15\,609 & 132\,132 & yes \\
+TikTok  & $\alpha_{\max}$ & 150\,000 & 178\,051 & 89\,991 & 275\,297 & yes \\
+TikTok  & $\lambda$       & 0.250   & 0.263   & 0.077  & 0.455   & yes \\
+TikTok  & $K$             & 40\,000 & 53\,254  & 9\,181  & 134\,990 & yes \\
+YouTube & $\alpha_{\max}$ & 65\,000  & 71\,196  & 6\,836  & 171\,504 & yes \\
+YouTube & $\lambda$       & 0.450   & 0.336   & 0.081  & 0.620   & yes \\
+YouTube & $K$             & 30\,000 & 69\,617  & 2\,553  & 164\,162 & yes \\
+Display & $\alpha_{\max}$ & 32\,000 & 85\,757  & 9\,551  & 195\,229 & yes \\
+Display & $\lambda$       & 0.200   & 0.296   & 0.067  & 0.580   & yes \\
+Display & $K$             & 20\,000 & 76\,123  & 3\,501  & 163\,714 & yes \\
 \bottomrule
 \end{tabular}
 \caption{Posterior recovery of the ground-truth channel parameters. All 15 intervals contain the true value, but interval widths are large because a 156-week panel provides only limited identification.}
@@ -176,17 +232,17 @@ Display & $K$             & 30\,000 & 55\,332 & 2\,179 & 118\,122 & yes \\
 \toprule
 \textbf{Driver} & \textbf{Contribution (MSEK)} & \textbf{Share} \\
 \midrule
-Baseline    & 38.3 & 73.7\% \\
-Meta        & 3.0  & 5.8\% \\
-TikTok      & 3.0  & 5.7\% \\
-Search      & 2.7  & 5.1\% \\
-Trend       & 2.6  & 5.1\% \\
-YouTube     & 1.4  & 2.6\% \\
-Display     & 0.8  & 1.6\% \\
-Newsletter  & 0.6  & 1.1\% \\
-Events      & 0.2  & 0.4\% \\
+Baseline    & 44.0 & 37.5\% \\
+Meta        & 19.9 & 17.0\% \\
+TikTok      & 15.4 & 13.1\% \\
+Competitor  & 14.0 & 11.9\% \\
+Search      & 9.4  & 8.0\% \\
+YouTube     & 5.2  & 4.4\% \\
+Display     & 4.3  & 3.7\% \\
+Trend       & 4.3  & 3.7\% \\
+Events      & 0.4  & 0.4\% \\
+Newsletter  & 0.4  & 0.3\% \\
 Season      & 0.0  & 0.0\% \\
-Competitor  & $-0.6$ & $-1.1\%$ \\
 \bottomrule
 \end{tabular}
 \caption{Three-year revenue attribution by driver. Season nets to near-zero because peaks and troughs cancel over an integer number of years.}
@@ -200,11 +256,11 @@ Competitor  & $-0.6$ & $-1.1\%$ \\
 \toprule
 \textbf{Channel} & \textbf{Spend} & \textbf{Contribution} & \textbf{ROAS} & \textbf{5\%} & \textbf{95\%} \\
 \midrule
-Search  & 3\,408\,574 & 2\,653\,607 & 0.78 & 0.16 & 1.78 \\
-TikTok  & 5\,036\,740 & 2\,959\,744 & 0.59 & 0.12 & 1.30 \\
-YouTube & 3\,226\,745 & 1\,371\,148 & 0.43 & 0.21 & 0.67 \\
-Meta    & 7\,950\,251 & 3\,028\,701 & 0.38 & 0.05 & 0.97 \\
-Display & 2\,260\,398 & 803\,784    & 0.36 & 0.02 & 1.33 \\
+TikTok  & 5\,642\,102 & 15\,381\,013 & 2.73 & 1.00 & 5.52 \\
+Search  & 3\,780\,325 & 9\,351\,161  & 2.47 & 0.68 & 5.33 \\
+Meta    & 8\,439\,389 & 19\,938\,286 & 2.36 & 1.04 & 4.25 \\
+Display & 2\,523\,399 & 4\,328\,926  & 1.72 & 0.14 & 5.60 \\
+YouTube & 3\,529\,956 & 5\,203\,248  & 1.47 & 0.09 & 5.30 \\
 \bottomrule
 \end{tabular}
 \caption{ROAS per paid channel with posterior mean and 90\% credible interval. Wide intervals reflect the identification challenge on a 156-week panel with correlated always-on spend.}
@@ -218,10 +274,10 @@ Display & 2\,260\,398 & 803\,784    & 0.36 & 0.02 & 1.33 \\
 
 \section{What the model shows}
 
-The Bayesian MMM in Stan fits weekly revenue well ($R^2 = 0.87$, MAPE
-$4.4\%$) and recovers all 15 channel-level ground-truth parameters
+The Bayesian MMM in Stan fits weekly revenue well ($R^2 = 0.78$, MAPE
+$2.4\%$) and recovers all 15 channel-level ground-truth parameters
 inside their 90\% credible intervals. Baseline plus trend explain
-about $79\%$ of revenue, which is realistic for retail MMM where
+about $63\%$ of revenue, which is realistic for retail MMM where
 brand and organic demand carry most of the sales.
 
 The main honest weakness is interval width. Posterior means are close

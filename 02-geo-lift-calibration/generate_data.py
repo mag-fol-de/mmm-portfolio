@@ -94,12 +94,12 @@ def adstock(x, decay):
 def saturate(x, K):
     return x / (K + x)
 
-LAMBDA = {"search": 0.10, "meta": 0.30, "tiktok": 0.25,
-          "youtube": 0.40, "display": 0.20}
-K = {"search": 20_000, "meta": 60_000, "tiktok": 40_000,
-     "youtube": 50_000, "display": 30_000}
-ALPHA_MAX = {"search": 25_000, "meta": 35_000, "tiktok": 28_000,
-             "youtube": 32_000, "display": 15_000}
+LAMBDA = {"search": 0.20, "meta": 0.35, "tiktok": 0.25,
+          "youtube": 0.45, "display": 0.20}
+K = {"search": 15_000, "meta": 60_000, "tiktok": 40_000,
+     "youtube": 30_000, "display": 20_000}
+ALPHA_MAX = {"search": 150_000, "meta": 220_000, "tiktok": 150_000,
+             "youtube": 65_000, "display": 32_000}
 
 def channel_effect(spend, name):
     return ALPHA_MAX[name] * saturate(adstock(spend, LAMBDA[name]), K[name])
