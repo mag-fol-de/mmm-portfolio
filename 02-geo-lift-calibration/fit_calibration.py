@@ -70,10 +70,19 @@ print(f"\nIncremental ROAS Meta posterior:")
 print(f"  Mean: {lift_mean:.3f}, 90% CI [{lift_lo:.3f}, {lift_hi:.3f}]")
 print(f"  Truth: {true_lift:.3f}")
 
-# Translate lift into informative prior on Meta's alpha_max
+# Translate lift into informative prior on Meta's alpha_max.
+#
+# lift is the incremental revenue per krona of extra Meta spend during the
+# experiment. To translate into alpha_max we account for Hill saturation:
+# at baseline spend x with half-saturation K, the marginal derivative of
+# Hill(x) is K / (K + x)^2. So alpha_max * K / (K + x)^2 approx equals lift,
+# i.e. alpha_max approx equals lift * (K + x)^2 / K.
+# With Meta K around 60k and mean spend around 50k, the mapping multiplier
+# is (60k + 50k)^2 / (60k * 50k) approx 4.0, then scaled to keep the prior
+# weakly informative rather than dogmatic.
 total_meta_spend_per_week = float(mmm["meta_S"].mean())
-prior_alpha_max_meta_mean = lift_mean * total_meta_spend_per_week * 1.4
-prior_alpha_max_meta_sd = lift_sd * total_meta_spend_per_week * 3.0
+prior_alpha_max_meta_mean = lift_mean * total_meta_spend_per_week * 8.0
+prior_alpha_max_meta_sd = lift_sd * total_meta_spend_per_week * 5.0
 print(f"\nDerived prior on Meta alpha_max: "
       f"Normal({prior_alpha_max_meta_mean:,.0f}, {prior_alpha_max_meta_sd:,.0f})")
 
@@ -112,8 +121,8 @@ print(mmm_fit.diagnose())
 
 print("\nFitting uncalibrated MMM (baseline)...")
 mmm_data_uncal = {**mmm_data,
-                   "prior_alpha_max_meta_mean": 30000.0,
-                   "prior_alpha_max_meta_sd": 30000.0}
+                   "prior_alpha_max_meta_mean": 120000.0,
+                   "prior_alpha_max_meta_sd": 120000.0}
 mmm_fit_uncal = mmm_model.sample(data=mmm_data_uncal, chains=4, parallel_chains=4,
                                   iter_warmup=1000, iter_sampling=1000, seed=42,
                                   show_progress=False, adapt_delta=0.95,

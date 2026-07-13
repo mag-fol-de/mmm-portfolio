@@ -117,13 +117,13 @@ model {
   beta_ev    ~ normal(0, 50000);
 
   lambda            ~ beta(2, 4);
-  K                 ~ normal(40000, 40000);
-  alpha_max_static  ~ normal(30000, 30000);
+  K                 ~ normal(50000, 60000);
+  alpha_max_static  ~ normal(120000, 120000);
 
   lambda_search   ~ beta(2, 4);
-  K_search        ~ normal(20000, 20000);
-  alpha_search_0  ~ normal(25000, 15000);
-  tau             ~ normal(0, 2000);   // half-normal via lower=0
+  K_search        ~ normal(15000, 20000);
+  alpha_search_0  ~ normal(120000, 80000);
+  tau             ~ normal(0, 5000);   // half-normal via lower=0
   eta             ~ std_normal();      // implies alpha_search[t] - alpha_search[t-1] ~ N(0, tau)
 
   alpha_nl  ~ normal(6000, 5000);

@@ -56,25 +56,63 @@ either regime.
 This project fits an MMM in Stan where one channel's max effect,
 $\alpha_{\max, \text{Search}}(t)$, is modelled as a random walk over
 time while the other channels are static. The generator embeds a
-known linear ramp from $18\,000$ to $38\,000$ over 156 weeks; the
+known linear ramp from $90\,000$ to $200\,000$ over 156 weeks; the
 model tries to recover it.
 
 \section{Data}
 
 The same 156-week synthetic panel used in project 1 with one change:
-Search's $\alpha_{\max}$ ramps linearly from $18\,000$ (week 0) to
-$38\,000$ (week 155). All other channels retain their static
+Search's $\alpha_{\max}$ ramps linearly from $90\,000$ (week 0) to
+$200\,000$ (week 155). All other channels retain their static
 ground-truth parameters. This tests whether a TVC model can recover
 a drift when the other channels stay constant.
 
-\section{The model}
+\section{Model specification}
 
-The static channels use the same adstock + Hill saturation formulation
-as project 1. Search's coefficient is a random walk:
-$$\alpha_{\max, \text{Search}}(t) = \alpha_{\max, \text{Search}}(t-1) + \tau \cdot \epsilon_t, \quad \epsilon_t \sim \mathcal{N}(0, 1)$$
-with a HalfNormal prior on $\tau$ (the step-size hyperparameter) that
-lets the walk be tight or loose depending on what the data supports.
-Revenue is the same Normal likelihood on the sum of contributions.
+\subsection{Channel transforms}
+
+Same as project 1. For static channels $c$ and for Search separately,
+geometric adstock and Hill saturation transform weekly spend:
+$$\text{Ad}_{c,t} = x_{c,t} + \lambda_c \, \text{Ad}_{c,t-1}, \qquad \text{Sat}_{c,t} = \frac{\text{Ad}_{c,t}}{K_c + \text{Ad}_{c,t}}$$
+
+\subsection{Time-varying coefficient}
+
+Search's channel scale evolves as a Gaussian random walk over weeks:
+$$\alpha_{\max, \text{Search}}(t) = \alpha_{\max, \text{Search}}(t - 1) + \tau \cdot \varepsilon_t, \quad \varepsilon_t \sim \mathcal{N}(0, 1)$$
+
+with non-centred parameterisation for sampling efficiency:
+$\alpha_{\max, \text{Search}}(t) = \alpha_{0} + \tau \sum_{k=1}^{t-1} \varepsilon_k$.
+The step-size $\tau$ is a hyperparameter learned from the data.
+
+\subsection{Regression function}
+
+$$\mu_t = \beta_0 + \beta_{\text{trend}} \, t + \beta_{\cos} \cos\!\left(\tfrac{2\pi t}{52}\right) + \beta_{\sin} \sin\!\left(\tfrac{2\pi t}{52}\right) + \beta_{\text{comp}} c_t + \beta_{\text{ev}} e_t + \alpha_{\text{nl}} \, \text{Sat}_{\text{nl},t}$$
+$$+ \alpha_{\max, \text{Search}}(t) \cdot \text{Sat}_{\text{Search},t} + \sum_{c \in \text{static}} \alpha_{\max, c} \cdot \text{Sat}_{c, t}$$
+
+\subsection{Likelihood}
+
+$$\text{revenue}_t \sim \mathcal{N}(\mu_t, \sigma^2)$$
+
+\subsection{Priors}
+
+\textbf{Static channels:}
+$$\lambda_c \sim \text{Beta}(2, 4), \quad K_c \sim \mathcal{N}^{+}(50{,}000, 60{,}000^2), \quad \alpha_{\max, c} \sim \mathcal{N}^{+}(120{,}000, 120{,}000^2)$$
+
+\textbf{Search (time-varying):}
+$$\lambda_{\text{Search}} \sim \text{Beta}(2, 4), \quad K_{\text{Search}} \sim \mathcal{N}^{+}(15{,}000, 20{,}000^2)$$
+$$\alpha_0 \sim \mathcal{N}^{+}(120{,}000, 80{,}000^2), \quad \tau \sim \mathcal{N}^{+}(0, 5{,}000^2), \quad \varepsilon_t \sim \mathcal{N}(0, 1)$$
+
+\textbf{Controls, newsletter, noise:} same priors as project 1.
+
+\subsection{Posterior}
+
+With $\theta = (\beta_\cdot, \lambda_\cdot, K_\cdot, \alpha_{\max, c \in \text{static}}, \alpha_0, \tau, \varepsilon_{1:N-1}, \sigma)$,
+the joint posterior factorises as
+$$p(\theta \mid \text{revenue}) \; \propto \; p(\theta) \; \prod_{t=1}^{N} \mathcal{N}(\text{revenue}_t \mid \mu_t(\theta), \sigma^2)$$
+and is approximated by MCMC. The path $\alpha_{\max, \text{Search}}(t)$
+is deterministic given $\alpha_0$, $\tau$ and the innovation vector
+$\varepsilon_{1:N-1}$, so posterior draws of that path fall out
+directly from posterior draws of those parameters.
 
 \section{Inference}
 
@@ -104,8 +142,8 @@ across the whole window.
 \textbf{Metric} & \textbf{Value} \\
 \midrule
 Coverage of 90\% CI  & 100.0\% of weeks \\
-MAE of TVC posterior mean vs truth & 6\,229 \\
-Static midpoint approximation error (baseline) & 5\,032 \\
+MAE of TVC posterior mean vs truth & 26\,759 \\
+Static midpoint approximation error (baseline) & 27\,677 \\
 \bottomrule
 \end{tabular}
 \caption{Path recovery. Coverage is perfect. MAE of the TVC posterior mean is comparable to a static midpoint constant, because the TVC prior smooths the walk and the signal-to-noise ratio in weekly revenue is low.}
@@ -119,11 +157,11 @@ Static midpoint approximation error (baseline) & 5\,032 \\
 \caption{TVC tracks the drift direction. A static model can only fit a constant, which by construction misses either the early period or the late period of the ramp.}
 \end{figure}
 
-The static approximation (dashed red line at $28\,000$) sits at the
+The static approximation (dashed red line at $145\,000$) sits at the
 midpoint of the ramp. Its point-wise error against the truth averages
-$5\,032$ SEK, which is lower than the TVC posterior mean's MAE of
-$6\,229$ SEK. That looks bad for TVC on average error alone, but the
-comparison is misleading because:
+$27\,677$ SEK, which is comparable to the TVC posterior mean's MAE of
+$26\,759$ SEK. On this data the TVC narrowly wins on point error, but
+the more important comparison is elsewhere:
 
 \begin{itemize}
 \item The static model is systematically biased in both halves of the
@@ -151,10 +189,10 @@ asking "what's Search's average effectiveness," static wins.
 \toprule
 \textbf{Channel} & \textbf{True} & \textbf{Mean} & \textbf{5\%} & \textbf{95\%} & \textbf{Covers} \\
 \midrule
-Meta    & 35\,000 & 28\,309 & 4\,268 & 58\,606 & yes \\
-TikTok  & 28\,000 & 38\,307 & 9\,707 & 70\,046 & yes \\
-YouTube & 32\,000 & 31\,075 & 11\,900 & 53\,325 & yes \\
-Display & 15\,000 & 12\,343 & 714 & 35\,225 & yes \\
+Meta    & 220\,000 & 187\,414 & 135\,720 & 250\,800 & yes \\
+TikTok  & 150\,000 & 190\,173 & 135\,386 & 257\,225 & yes \\
+YouTube & 65\,000  & 77\,222  & 41\,366  & 124\,418 & yes \\
+Display & 32\,000  & 20\,908  & 1\,064   & 62\,677  & yes \\
 \bottomrule
 \end{tabular}
 \caption{Static-channel parameter recovery. All 90\% credible intervals contain the truth. Interval widths are wide because 156 weeks with correlated channel spend is not much identification power.}

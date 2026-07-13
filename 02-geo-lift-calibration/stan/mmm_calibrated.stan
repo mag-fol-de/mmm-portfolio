@@ -87,15 +87,15 @@ model {
   beta_ev    ~ normal(0, 50000);
 
   lambda ~ beta(2, 4);
-  K      ~ normal(40000, 40000);
+  K      ~ normal(50000, 60000);
 
   // alpha_max priors. Meta gets the calibration prior, the rest stay weakly
-  // informative.
+  // informative but wide enough to allow realistic ROAS solutions.
   for (c in 1:C) {
     if (c == meta_idx) {
       alpha_max[c] ~ normal(prior_alpha_max_meta_mean, prior_alpha_max_meta_sd);
     } else {
-      alpha_max[c] ~ normal(30000, 30000);
+      alpha_max[c] ~ normal(120000, 120000);
     }
   }
 

@@ -58,22 +58,56 @@ hits the treated unit at week 31 with a true per-week effect of
 $\tau = 25{,}000$ SEK. Each unit has its own baseline, a shared trend,
 annual seasonality, and Gaussian noise.
 
-\section{The two models}
+\section{Model specification}
 
-\textbf{BSC} models the pre-period as a weighted average of controls and
-extends the same weights into the post-period:
-$$Y^{(0)}_t \sim \mathcal{N}\!\left(\sum_i \omega_i Y^{(C)}_{i,t},\ \sigma^2\right),
-\quad \omega \sim \mathrm{Dirichlet}(1).$$
-The ATT is the post-period residual $Y^{(0)}_t - \sum_i \omega_i Y^{(C)}_{i,t}$.
+\subsection{Notation}
 
-\textbf{BSDID} adds a second simplex of time weights $\lambda$ on the
-pre-period and subtracts the $\lambda$-weighted pre-period gap from the
-ATT:
-$$\mathrm{ATT}_t = \big(Y^{(0)}_t - \omega \cdot Y^{(C)}_t\big)
-\;-\; \sum_s \lambda_s \big(Y^{(0)}_s - \omega \cdot Y^{(C)}_s\big).$$
-$\lambda$ has a Dirichlet prior and is anchored to data through a likelihood that requires the $\lambda$-weighted pre-period of each control to predict that control's post-period level:
-$$\overline{Y^{(C)}_{i,\text{post}}} \sim \mathcal{N}\!\left(\sum_t \lambda_t\, Y^{(C)}_{i,t},\ \sigma_\lambda^2\right), \quad i = 1, \ldots, N.$$
-The observation noise has a weakly informative Half-Normal prior anchored to the empirical pre-period standard deviation, $\sigma \sim \mathrm{HalfNormal}(0, \widehat{\sigma}_{\text{emp}})$.
+Let $Y^{(0)}_t$ denote the treated unit's outcome at week $t$,
+$Y^{(C)}_{i, t}$ the $i$-th control unit's outcome, $T_0$ the last
+pre-treatment week and $T$ the last observed week. Let
+$\omega \in \Delta^{N-1}$ (the $N$-simplex) be unit weights and
+$\lambda \in \Delta^{T_0 - 1}$ time weights.
+
+\subsection{Bayesian Synthetic Control (BSC)}
+
+The treated unit's pre-period is modelled as a weighted average of
+control units:
+$$Y^{(0)}_t \sim \mathcal{N}\!\left(\sum_{i=1}^{N} \omega_i \, Y^{(C)}_{i,t},\ \sigma^2\right), \quad t = 1, \ldots, T_0$$
+
+\textbf{Priors:}
+$$\omega \sim \mathrm{Dirichlet}(\mathbf{1}_N), \quad \sigma \sim \mathcal{N}^{+}(0,\, \widehat{\sigma}_{\text{emp}}^{\,2})$$
+where $\widehat{\sigma}_{\text{emp}} = \mathrm{sd}(Y^{(0)}_{1:T_0})$ is the empirical pre-period standard deviation of the treated unit.
+
+\textbf{ATT (generated quantity):} For each posterior draw $s$,
+$$\text{counterfactual}_t^{(s)} = \sum_i \omega_i^{(s)} \, Y^{(C)}_{i, t}, \quad \mathrm{ATT}_t^{(s)} = Y^{(0)}_t - \text{counterfactual}_t^{(s)}$$
+
+for $t > T_0$. The reported point estimate is
+$\overline{\mathrm{ATT}} = \tfrac{1}{T-T_0} \sum_{t > T_0} \mathrm{ATT}_t$ averaged over draws.
+
+\textbf{Posterior:}
+$$p(\omega, \sigma \mid Y^{(0)}, Y^{(C)}) \; \propto \; \mathrm{Dirichlet}(\omega \mid \mathbf{1}) \cdot \mathcal{N}^{+}(\sigma) \; \prod_{t=1}^{T_0} \mathcal{N}\!\left(Y^{(0)}_t \; \Big| \; \sum_i \omega_i Y^{(C)}_{i,t}, \sigma^2\right)$$
+
+\subsection{Bayesian Synthetic Difference-in-Differences (BSDID)}
+
+Same $\omega$-weighted control layer as BSC, plus a second simplex
+$\lambda$ of pre-period time weights. The ATT subtracts the
+$\lambda$-weighted pre-period gap:
+$$\mathrm{ATT}_t = \Big(Y^{(0)}_t - \sum_i \omega_i Y^{(C)}_{i,t}\Big) - \sum_{s=1}^{T_0} \lambda_s \Big(Y^{(0)}_s - \sum_i \omega_i Y^{(C)}_{i,s}\Big)$$
+
+Two likelihoods identify $\omega$ and $\lambda$ jointly:
+$$\text{Likelihood 1 (treated pre):} \quad Y^{(0)}_t \sim \mathcal{N}\!\left(\sum_i \omega_i Y^{(C)}_{i, t}, \sigma^2\right), \quad t = 1, \ldots, T_0$$
+$$\text{Likelihood 2 (controls' pre-vs-post):} \quad \overline{Y^{(C)}_{i, \text{post}}} \sim \mathcal{N}\!\left(\sum_t \lambda_t \, Y^{(C)}_{i, t},\ \sigma_\lambda^2\right), \quad i = 1, \ldots, N$$
+where $\overline{Y^{(C)}_{i,\text{post}}} = \tfrac{1}{T - T_0} \sum_{t > T_0} Y^{(C)}_{i, t}$.
+
+\textbf{Priors:}
+$$\omega \sim \mathrm{Dirichlet}(\mathbf{1}_N), \quad \lambda \sim \mathrm{Dirichlet}(\mathbf{1}_{T_0})$$
+$$\sigma \sim \mathcal{N}^{+}(0,\, \widehat{\sigma}_{\text{emp}}^{\,2}), \quad \sigma_\lambda \sim \mathcal{N}^{+}(0,\, \widehat{\sigma}_{\lambda,\text{emp}}^{\,2})$$
+where $\widehat{\sigma}_{\lambda, \text{emp}}$ is the empirical standard deviation of
+$\overline{Y^{(C)}_{i, \text{post}}}$ across controls.
+
+\textbf{Posterior:}
+$$p(\omega, \lambda, \sigma, \sigma_\lambda \mid Y^{(0)}, Y^{(C)}) \; \propto \; p(\omega) p(\lambda) p(\sigma) p(\sigma_\lambda) \cdot L_1 \cdot L_2$$
+with $L_1$ and $L_2$ the two likelihoods above.
 
 \section{Inference}
 

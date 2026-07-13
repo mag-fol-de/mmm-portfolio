@@ -72,36 +72,50 @@ truth $\alpha_{\max}$ for Meta is $35\,000$ SEK.
 
 \section{Methodology}
 
-\subsection{Step 1: Bayesian geo-lift}
+\subsection{Step 1: Bayesian geo-lift regression}
 
 For each geo-week observation $i$ in region $r$, revenue is modelled
-as
-$$\text{revenue}_i \sim \mathcal{N}\!\big(\mu_{r(i)} + \gamma \cdot \text{baseline\_meta}_i + \text{lift} \cdot \text{extra\_meta}_i,\ \sigma^2\big)$$
-where $\text{lift}$ is the incremental ROAS on the Meta boost. Priors
-are wide (HalfNormal on $\text{lift}$ and $\sigma$, Normal on region
-means and $\gamma$).
+as a region-level intercept plus a linear response to baseline and
+experimental Meta spend:
+$$\text{revenue}_i \sim \mathcal{N}\!\big(\mu_i,\, \sigma^2\big),
+\quad \mu_i = \mu_{r(i)} + \gamma \cdot \text{baseline\_meta}_i + \ell \cdot \text{extra\_meta}_i$$
 
-The posterior on $\text{lift}$ is what carries into step 2.
+Here $\ell$ is the incremental ROAS on the experimental Meta boost --
+the quantity of interest.
+
+\textbf{Priors:}
+$$\mu_r \sim \mathcal{N}(200{,}000,\, 100{,}000^2), \quad \gamma \sim \mathcal{N}^{+}(0.3,\, 0.3^2)$$
+$$\ell \sim \mathcal{N}^{+}(0.5,\, 0.5^2), \quad \sigma \sim \mathcal{N}^{+}(0,\, 20{,}000^2)$$
+
+\textbf{Posterior:}
+$$p(\mu_r, \gamma, \ell, \sigma \mid \text{revenue}) \; \propto \; p(\mu_r) \, p(\gamma) \, p(\ell) \, p(\sigma) \, \prod_i \mathcal{N}(\text{revenue}_i \mid \mu_i, \sigma^2)$$
+
+The posterior on $\ell$ is what carries into step 2.
 
 \subsection{Step 2: Prior translation}
 
 The lift posterior is a distribution on revenue per krona spent. To
-inject it as a prior on $\alpha_{\max, \text{Meta}}$ in the MMM, we
-translate scale:
-$$\alpha_{\max, \text{Meta}} \sim \mathcal{N}\!\big(\bar{\ell} \cdot \bar{s} \cdot 1.4,\ \text{sd}(\ell) \cdot \bar{s} \cdot 3.0\big)$$
-where $\bar{\ell}$ and $\text{sd}(\ell)$ are the posterior mean and
-standard deviation of the lift, $\bar{s}$ is Meta's mean weekly
-spend, and the multipliers $1.4$ and $3.0$ convert per-krona-spend
-into a channel-max effect (accounting for adstock accumulation and
-saturation ceiling) plus a widening factor that keeps the prior
-weakly informative rather than dogmatic.
+inject it as a prior on $\alpha_{\max, \text{Meta}}$ in the MMM, the
+lift is scaled through Hill saturation. At baseline spend $\bar{s}$
+with half-saturation $K$, the derivative of the Hill contribution is
+$\alpha_{\max} \cdot K / (K + \bar{s})^2$, which we set equal to the
+lift and solve for $\alpha_{\max}$. The resulting mapping is
+$$\alpha_{\max, \text{Meta}} \sim \mathcal{N}\!\big(\bar{\ell} \cdot \bar{s} \cdot m_\mu,\, \text{sd}(\ell) \cdot \bar{s} \cdot m_\sigma\big)$$
+with multipliers $m_\mu = 8.0$ and $m_\sigma = 5.0$ chosen to reflect
+Meta's approximate saturation regime while keeping the prior weakly
+informative.
 
 \subsection{Step 3: MMM refit}
 
-Two versions of the same MMM are fitted. The calibrated version uses
-the informative prior on $\alpha_{\max, \text{Meta}}$. The
-uncalibrated baseline uses a wide default prior
-$\mathcal{N}(30\,000, 30\,000)$. All other parameters are identical.
+The MMM has the same structure as project 1: geometric adstock, Hill
+saturation, and a Normal likelihood on weekly revenue. Two versions
+are fit: a \textbf{calibrated} version using the informative prior
+on $\alpha_{\max, \text{Meta}}$ from step 2, and an
+\textbf{uncalibrated} baseline that uses the default weakly-informative
+prior $\mathcal{N}^{+}(120{,}000, 120{,}000^2)$. All other parameters
+share priors:
+$$\lambda_c \sim \text{Beta}(2, 4), \quad K_c \sim \mathcal{N}^{+}(50{,}000, 60{,}000^2)$$
+$$\alpha_{\max, c \neq \text{Meta}} \sim \mathcal{N}^{+}(120{,}000, 120{,}000^2), \quad \sigma \sim \mathcal{N}^{+}(0, 30{,}000^2)$$
 
 \section{Results}
 
@@ -124,12 +138,12 @@ the input to the calibration.
 \toprule
 \textbf{Model} & \textbf{Mean} & \textbf{5\%} & \textbf{95\%} & \textbf{CI width} & \textbf{Contains truth?} \\
 \midrule
-Truth        & 35\,000 & --      & --      & --      & -- \\
-Uncalibrated & 29\,117 & 4\,613  & 60\,366 & 55\,753 & yes \\
-Calibrated   & 39\,898 & 32\,997 & 46\,310 & \textbf{13\,313} & yes \\
+Truth        & 220\,000 & --       & --       & --       & -- \\
+Uncalibrated & 195\,452 & 143\,030 & 267\,158 & 124\,129 & yes \\
+Calibrated   & 230\,326 & 219\,138 & 241\,416 & \textbf{22\,278} & yes \\
 \bottomrule
 \end{tabular}
-\caption{Meta $\alpha_{\max}$ posterior comparison. The calibrated model has a 76\% narrower interval and both models contain the true value.}
+\caption{Meta $\alpha_{\max}$ posterior comparison. The calibrated model has an 82\% narrower interval and both models contain the true value.}
 \end{table}
 
 \begin{figure}[H]
@@ -141,14 +155,14 @@ Calibrated   & 39\,898 & 32\,997 & 46\,310 & \textbf{13\,313} & yes \\
 \section{What this shows}
 
 The uncalibrated MMM identifies Meta's max effect only up to a wide
-interval spanning $4\,613$ to $60\,366$. This is what happens when
+interval spanning $143\,030$ to $267\,158$. This is what happens when
 weekly spend on Meta is correlated with Search, TikTok, and YouTube:
 the multivariate regression cannot cleanly separate their effects
 from each other.
 
 Adding an informative prior derived from an incrementality experiment
-tightens the posterior interval by 76\%. The mean shifts from
-$29\,117$ (below truth) to $39\,898$ (slightly above truth), and the
+tightens the posterior interval by 82\%. The mean shifts from
+$195\,452$ (below truth) to $230\,326$ (slightly above truth), and the
 uncertainty around it becomes actionable: risk-based budget
 recommendations built on the calibrated version have real teeth.
 
