@@ -214,68 +214,54 @@ over BSC is expected to be significantly larger.
 
 \section{Implications for client engagements}
 
-For geo-lift measurement work delivered to brand clients, the
-practical takeaways are:
+A few practical takeaways for geo-lift work with brand clients.
 
-\textbf{Methodological choice on the engagement:}
+\textbf{Method choice:}
 
 \begin{itemize}
-  \item \textbf{Consider BSDID as the default when a treated market
-        has a differential trend or persistent offset from its
-        comparison set.} BSC can attribute pre-existing drift to
-        campaign impact, potentially overstating incremental lift.
-        BSDID reduces that risk.
-  \item \textbf{The gap between the two methods depends on how
-        similar the treated market is to its controls.} When the
-        treated market sits well inside the convex hull of its
-        controls (as in this simulation), the two methods produce
-        comparable estimates and BSDID's advantage is modest. When
-        the treated market has a distinct trend, scale, or consumer
-        profile that no weighted average of the controls can
-        reproduce, BSDID's pre-period correction has more to correct
-        and the advantage grows.
-  \item \textbf{Credible intervals around the lift estimate can be
-        modestly tighter with BSDID.} On average this project sees a
-        9\,\% tighter credible interval around the lift number, which
-        may translate to a smaller reported range when presenting
-        campaign impact.
-  \item \textbf{Include a robustness check in the engagement scope.}
-        A single fit answers "what does this campaign look like?"
-        Repeating on resampled or placebo-treated panels adds a view
-        on how sensitive that answer is to the data at hand.
+  \item \textbf{Use BSDID when the treated market has a different
+        trend or a persistent gap from its controls.} BSC can read
+        that gap as campaign impact and overstate the lift. BSDID
+        removes the gap first.
+  \item \textbf{How much BSDID beats BSC depends on how different
+        the treated market is.} If the treated market looks like a
+        weighted mix of its controls (as in this simulation), the
+        two methods land close together. If the treated market has
+        its own trend, size, or audience mix, BSDID pulls further
+        ahead.
+  \item \textbf{BSDID's credible interval is on average 9\,\%
+        tighter here.} That means a slightly smaller reported range
+        when sharing lift numbers with clients.
+  \item \textbf{Budget for a robustness check.} One fit tells you
+        what the campaign looks like. Re-fitting on resampled or
+        placebo panels tells you how much you can trust that answer.
 \end{itemize}
 
-\textbf{How this can support the client conversation:}
+\textbf{Client conversation:}
 
 \begin{itemize}
-  \item \textbf{Consider reporting lift as a range rather than a
-        single number.} Presenting a credible range like "12\,\%
-        $\pm$ 3\,pp" together with the underlying distribution
-        acknowledges measurement uncertainty explicitly, which can
-        help ground the conversation with senior stakeholders.
-  \item \textbf{The method choice can be an anchor when explaining
-        the approach.} Being able to describe why a specific
-        Bayesian causal-inference method was chosen (e.g.\ to protect
-        against pre-period drift) is one way to frame the technical
-        rigour of the engagement.
-  \item \textbf{Use the per-week posterior band when walking the
-        client through what happened.} The mean lift number is one
-        line; the per-week credible band shows ramp-up, stability,
-        or decay over the campaign period.
-  \item \textbf{Credible intervals can be framed as risk ranges.}
-        "The lift is between +8\,\% and +16\,\% with 90\,\%
-        credibility" gives a media planner scenarios for both ends
-        of the range, which some teams find more actionable than a
-        single point estimate.
-  \item \textbf{A rigorous lift report with honest uncertainty can
-        motivate follow-up conversations.} Questions like "how could
-        we tighten the range on the next campaign?" open naturally
-        to discussing larger panels, informative priors from prior
-        campaigns, or longer pre-periods.
-  \item \textbf{Robustness data can be useful in procurement or
-        analytics-heavy conversations.} Being able to describe how a
-        method was validated across simulated scenarios gives one
-        possible answer to "how do you know this method works?"
+  \item \textbf{Report lift as a range, not a single number.} "+12\,\%
+        $\pm$ 3\,pp" is more honest than a single "+12\,\%" and
+        avoids overpromising.
+  \item \textbf{Use the method choice to explain the rigour.}
+        Saying "we chose BSDID because it protects against a
+        specific type of measurement error" gives the client a
+        concrete reason to trust the number.
+  \item \textbf{Show the per-week lift plot when walking through
+        results.} It shows whether the effect ramped up, stayed
+        flat, or faded — clients see the story, not just a single
+        headline.
+  \item \textbf{Turn the credible interval into a planning range.}
+        "Lift is between +8\,\% and +16\,\%" gives a media planner
+        two budget scenarios to work with. Easier to act on than a
+        point estimate.
+  \item \textbf{An honest lift report opens the next conversation.}
+        Clients asking "how do we tighten the range next time?" is a
+        natural bridge to a bigger panel, longer pre-period, or
+        priors from earlier campaigns.
+  \item \textbf{Robustness data helps with procurement questions.}
+        If a client asks "how do you know this works?", you can point
+        to how the method holds up across 20 simulated scenarios.
 \end{itemize}
 
 \section{Limitations}
