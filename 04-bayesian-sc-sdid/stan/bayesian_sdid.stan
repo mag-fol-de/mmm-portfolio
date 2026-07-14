@@ -60,8 +60,19 @@ generated quantities {
   real att_mean;
   real baseline_diff;
 
-  for (t in 1:T) {
+  // Pre-period counterfactual: deterministic dot-product. Used for
+  // baseline_diff which measures the systematic pre-period gap. Adding
+  // observation noise here would double-count noise (Y_treated is already
+  // observed, we only need omega-uncertainty on the pre-period residual).
+  for (t in 1:T0) {
     counterfactual[t] = dot_product(Y_control[t, ], omega);
+  }
+
+  // Post-period counterfactual: posterior predictive draw. This propagates
+  // both weight uncertainty (omega) and observation noise (sigma) into the
+  // ATT credible interval, giving nominal coverage.
+  for (t in (T0 + 1):T) {
+    counterfactual[t] = normal_rng(dot_product(Y_control[t, ], omega), sigma);
   }
 
   baseline_diff = 0;

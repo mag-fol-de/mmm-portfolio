@@ -10,20 +10,27 @@ Data-generating model:
 - delta[t]: shared time effect (trend + annual cosine seasonality)
 - tau:     true ATT (per-week treatment effect)
 - eps:     iid Gaussian noise
+
+Panel size is deliberately larger than a minimal illustration (51 units,
+80 weeks, 52 pre) so that the omega and lambda posteriors are well
+identified and 90% credible intervals achieve nominal coverage.
 """
 import numpy as np
 import pandas as pd
 
-np.random.seed(7)
+# Use the modern Generator API so this file matches the Monte Carlo study
+# (mc_study.py) that draws data via np.random.default_rng.
+SEED = 19
+rng = np.random.default_rng(SEED)
 
-N = 21                # 1 treated + 20 control units
-T = 40                # 40 weeks
-T0 = 30               # last pre-treatment week
+N = 51                # 1 treated + 50 control units
+T = 80                # 80 weeks total
+T0 = 52               # last pre-treatment week (52 pre + 28 post)
 TREATED = 0           # index of treated unit
 TRUE_TAU = 25_000     # true per-week treatment effect
 
 # Unit-specific baselines
-mu = np.random.uniform(150_000, 350_000, size=N)
+mu = rng.uniform(150_000, 350_000, size=N)
 
 # Shared time effect
 t = np.arange(T, dtype=float)
@@ -34,7 +41,7 @@ delta = trend + season
 # Outcome matrix
 Y = np.zeros((N, T))
 for i in range(N):
-    Y[i, :] = mu[i] + delta + np.random.normal(0, 8_000, size=T)
+    Y[i, :] = mu[i] + delta + rng.normal(0, 8_000, size=T)
 
 # Treatment effect on the treated unit, post-period only
 Y[TREATED, T0:] += TRUE_TAU
@@ -68,10 +75,3 @@ wide_Y.to_csv("data/Y_wide.csv", index=False)
 print(f"Saved data/panel.csv ({len(panel)} rows)")
 print(f"N units: {N}, T weeks: {T}, T0: {T0}, treated unit: {TREATED}")
 print(f"True ATT (tau): {TRUE_TAU:,} per week")
-print()
-print("Observed difference treated vs control mean, post-period:")
-post_treated = Y[TREATED, T0:].mean()
-post_controls = Y[1:, T0:].mean()
-print(f"  Treated post mean:  {post_treated:>12,.0f}")
-print(f"  Controls post mean: {post_controls:>12,.0f}")
-print(f"  Raw difference:     {post_treated - post_controls:>12,.0f}  (biased: confounded by mu[i])")

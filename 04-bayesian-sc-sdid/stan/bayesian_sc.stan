@@ -38,9 +38,17 @@ generated quantities {
   vector[T - T0] att_t;
   real att_mean;
 
-  // Counterfactual for the full horizon
-  for (t in 1:T) {
+  // Pre-period counterfactual: deterministic dot-product (used only for
+  // diagnostic plots, not for uncertainty of ATT).
+  for (t in 1:T0) {
     counterfactual[t] = dot_product(Y_control[t, ], omega);
+  }
+
+  // Post-period counterfactual: posterior predictive draw so ATT
+  // uncertainty reflects both weight and observation noise. Using the
+  // deterministic dot-product would under-cover the true ATT.
+  for (t in (T0 + 1):T) {
+    counterfactual[t] = normal_rng(dot_product(Y_control[t, ], omega), sigma);
   }
 
   // Treatment effect per post-period week
