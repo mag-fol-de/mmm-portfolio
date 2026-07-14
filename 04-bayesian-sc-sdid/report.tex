@@ -195,4 +195,15 @@ simplices, treatment is pure on/off, and there is no hierarchical
 pooling across experiments. Each of these is a natural extension for
 a follow-up study rather than a flaw in the current setup.
 
+BSDID's theoretical advantage over BSC is that it subtracts a
+systematic pre-period offset between treated and synthetic control
+before computing the ATT. That advantage is most pronounced when the
+treated unit has a differential trend, structural drift, or
+persistent offset that BSC would misread as post-period treatment
+effect. The synthetic panel here has homogeneous trends across units
+and only a small pre-period offset on the treated unit, so BSDID's
+correction has relatively little to correct. On real geo data with
+differential regional trends and macro drift, BSDID's margin over
+BSC is expected to widen.
+
 \end{document}
