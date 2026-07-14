@@ -47,3 +47,6 @@ samples/
 
 # Personal task briefs, not for public repo
 TASK.pdf
+
+# Local-only projects (not shared on GitHub)
+03-time-varying-mmm/

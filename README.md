@@ -16,10 +16,6 @@ Bayesian geo-lift estimation whose posterior on the incremental effect
 feeds back as an informative prior into the MMM. Closes the loop
 between experiments and modelling.
 
-**[03-time-varying-mmm](./03-time-varying-mmm)**
-Time-varying coefficient MMM. Lets channel effectiveness drift over
-time rather than assuming a static ROAS.
-
 **[04-bayesian-sc-sdid](./04-bayesian-sc-sdid)**
 Bayesian Synthetic Control vs Bayesian Synthetic Difference-in-Differences
 for geo-lift measurement. Comparison of two related causal-inference
