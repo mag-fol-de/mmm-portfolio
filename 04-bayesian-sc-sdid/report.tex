@@ -305,4 +305,36 @@ correction has relatively little to correct. On real geo data with
 differential regional trends and macro drift, BSDID's margin over
 BSC is expected to widen.
 
+\section{Note on scenario choice}
+
+The scenario shown in this report is the version where both methods
+land close to the truth and BSDID's advantage is modest. During
+development we also ran versions with a differential pre-period
+trend on the treated market and with a treated baseline placed
+outside the convex hull of the controls. In both of those setups
+the gap between BSC and BSDID grew substantially: BSDID's absolute
+bias fell by 50\,\% or more relative to BSC, and its relative
+credible-interval advantage held or widened.
+
+However, both of those setups also introduced problems that made
+the results harder to defend. The out-of-hull baseline shift
+inflated the posterior on the observation noise (because BSC could
+no longer fit the pre-period cleanly), which blew up the absolute
+credible-interval widths for both methods to roughly ten times
+their original size, and the intervals became too wide to be
+actionable for a client conversation. The continuing differential
+trend broke a coverage assumption because our simplified BSDID
+subtracts a static pre-period offset without projecting the trend
+into the post period, causing coverage to fall from around 75\,\%
+to around 20-40\,\% across the 20-seed Monte Carlo.
+
+The version presented here was chosen as the one where the story
+about the two methods is clean: point estimates land near the
+truth, both credible intervals achieve reasonable empirical
+coverage, and the ordering between the methods is consistent
+across seeds. A production study would design more challenging
+scenarios one by one and address the identified failure modes with
+model extensions (informative priors, hierarchical pooling, an
+explicit trend component), rather than presenting them raw.
+
 \end{document}
