@@ -217,6 +217,8 @@ over BSC is expected to be significantly larger.
 For geo-lift measurement work delivered to brand clients, the
 practical takeaways are:
 
+\textbf{Methodological choice on the engagement:}
+
 \begin{itemize}
   \item \textbf{Default to BSDID when a treated market has a
         differential trend or persistent offset from its comparison
@@ -228,23 +230,52 @@ practical takeaways are:
         interval around the lift number, which translates to a
         smaller reported range when presenting campaign impact to
         clients.
-  \item \textbf{Absolute lift estimates should be reported with a
-        credible interval, not as a single number.} Both methods
-        produce a distribution; reducing it to one figure discards
-        information about the uncertainty of the estimate, which is
-        exactly what clients need to make budget decisions under
-        risk.
-  \item \textbf{Use the representative panel plot (per-week posterior
-        band) when clients ask "how did lift evolve over the
-        campaign?"}. The mean lift number is one line; the per-week
-        credible band tells the story of ramp-up, stability, or
-        decay.
   \item \textbf{For every geo-lift engagement, budget for a robustness
         check.} Fitting once on the observed data answers "what does
         this campaign look like?" Repeating on resampled or
         placebo-treated panels answers "how confident can we be in
         that answer?", which is the second question every senior
         marketing decision-maker will ask.
+\end{itemize}
+
+\textbf{How this strengthens the client conversation:}
+
+\begin{itemize}
+  \item \textbf{Report lift as a range, not a single number.} A single
+        "+12\,\% incremental sales" figure looks precise but is
+        brittle. Presenting a credible range like "12\,\% $\pm$ 3\,pp"
+        with the underlying distribution acknowledges uncertainty
+        openly, which builds trust with CFO- and CMO-level
+        stakeholders who know that measurement isn't perfect.
+  \item \textbf{Position the method as the difference-maker.} When
+        pitching an MMM or lift-measurement engagement, being able to
+        say "we use state-of-the-art Bayesian causal inference
+        (BSDID) rather than the industry-standard synthetic control
+        because it protects against a well-known measurement error"
+        differentiates the offering from cheaper alternatives.
+  \item \textbf{Use the per-week posterior band to walk the client
+        through what happened.} The mean lift number is one line; the
+        per-week credible band shows ramp-up, stability, or decay.
+        Visual storytelling of the effect over time helps skeptical
+        clients internalize that the model is doing something
+        principled, not just producing a magic number.
+  \item \textbf{Turn credible intervals into risk framing for
+        planners.} "We are 90\,\% confident the lift is between +8\,\%
+        and +16\,\%" reads to a media planner as: budget scenarios
+        can be built for the low and high ends, and downside is
+        bounded. Better than a point estimate that ignores the
+        possibility of being wrong.
+  \item \textbf{Anchor a follow-up conversation on the next
+        experiment.} A rigorous lift report with honest uncertainty
+        naturally leads to "how can we tighten the range for next
+        campaign?"---which opens the door to selling further
+        engagements (larger panel, informative priors from prior
+        campaigns, longer pre-period).
+  \item \textbf{Robustness data reassures cautious buyers.} Being
+        able to say "we tested this method on 20 simulated scenarios
+        and it consistently outperforms the standard approach" gives
+        procurement and analytics-savvy clients a defensible reason
+        to sign off on the engagement.
 \end{itemize}
 
 \section{Limitations}
