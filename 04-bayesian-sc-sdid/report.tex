@@ -225,6 +225,15 @@ practical takeaways are:
         comparison set.} BSC can attribute pre-existing drift to
         campaign impact, potentially overstating incremental lift.
         BSDID reduces that risk.
+  \item \textbf{The gap between the two methods depends on how
+        similar the treated market is to its controls.} When the
+        treated market sits well inside the convex hull of its
+        controls (as in this simulation), the two methods produce
+        comparable estimates and BSDID's advantage is modest. When
+        the treated market has a distinct trend, scale, or consumer
+        profile that no weighted average of the controls can
+        reproduce, BSDID's pre-period correction has more to correct
+        and the advantage grows.
   \item \textbf{Credible intervals around the lift estimate can be
         modestly tighter with BSDID.} On average this project sees a
         9\,\% tighter credible interval around the lift number, which
