@@ -178,9 +178,31 @@ pre-period, which is the common case on real geo data.
 
 \section{Limitations}
 
-Single seed. Uniform Dirichlet priors. No smoothness regularization on
-$\lambda$ beyond the Dirichlet. Pure on/off treatment. A production
-implementation would add informative priors and a hierarchical
-structure pooling across past experiments.
+\textbf{The panel is synthetic and cleaner than reality.} The
+simulator produces observations from a fixed data-generating process
+with additive Gaussian noise, a stable trend, and clean annual
+seasonality. Real geo data has non-stationarity, structural breaks,
+inter-region spillovers, correlated shocks across regions during macro
+events, and heteroskedastic noise. Signal-to-noise ratio here is
+unrealistically high, so absolute numbers (35\,\% tighter interval,
+20\,\% lower error) reflect the synthetic setup and would move on real
+data.
+
+\textbf{Single seed.} All results come from one random draw of the
+data-generating process. A full Monte Carlo study over many seeds
+would be needed to separate systematic bias from sampling noise.
+
+\textbf{Uniform Dirichlet priors.} No smoothness regularization on
+$\lambda$ beyond the Dirichlet, and no informative priors on
+$\omega$. Production models typically use priors tied to geographic
+similarity, market size, or category benchmarks.
+
+\textbf{Pure on/off treatment.} Only binary treatment is modelled.
+Real geo-lift experiments have varying spend intensities and treatment
+timing across regions.
+
+\textbf{No hierarchical pooling.} A single experiment fitted in
+isolation. A mature system pools information across many past lift
+tests.
 
 \end{document}
