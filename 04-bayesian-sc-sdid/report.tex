@@ -203,6 +203,15 @@ SDID framework. The advantage matters most whenever the treated
 market sits above or below the convex hull of its controls in the
 pre-campaign period, which is the common case on real geo data.
 
+In this project the observed advantage is deliberately modest because
+the simulator draws every unit's baseline from the same distribution
+and gives them identical trends and seasonality. The treated market
+therefore sits well inside the convex hull of its controls, and BSC
+has little systematic offset to leak into the lift estimate. On real
+data where the treated market has a distinct trend, scale, or
+consumer profile relative to the control set, BSDID's improvement
+over BSC is expected to be significantly larger.
+
 \section{Implications for client engagements}
 
 For geo-lift measurement work delivered to brand clients, the
