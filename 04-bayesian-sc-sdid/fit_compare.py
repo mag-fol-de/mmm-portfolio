@@ -117,6 +117,23 @@ sdid_stats = summarize(sdid_att, "SDID")
 # -----------------------------------------------------------------------------
 plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 120})
 
+# 0. Raw panel: treated vs controls over time (so the reader sees the data)
+fig, ax = plt.subplots(figsize=(11, 5))
+weeks = np.arange(T)
+for j in range(N):
+    ax.plot(weeks, Y_control[:, j], color="lightgrey", lw=0.7, alpha=0.7)
+ax.plot([], [], color="lightgrey", lw=0.7, label=f"{N} control markets")
+ax.plot(weeks, Y_treated, color="darkorange", lw=2.0, label="Treated market")
+ax.axvline(T0 - 0.5, color="red", linestyle="--", lw=1.2, label="Treatment start")
+ax.set_xlabel("Week")
+ax.set_ylabel("Weekly outcome (SEK)")
+ax.set_title("Panel data: treated market vs controls over time")
+ax.legend(loc="upper left")
+ax.grid(alpha=0.3)
+plt.tight_layout()
+plt.savefig(FIG_DIR / "00_panel_overview.png")
+plt.close()
+
 # 1. ATT posterior plot
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.hist(sc_att,   bins=40, alpha=0.55, color="steelblue",  label="Bayesian SC", density=True)
