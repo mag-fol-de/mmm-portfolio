@@ -220,62 +220,53 @@ practical takeaways are:
 \textbf{Methodological choice on the engagement:}
 
 \begin{itemize}
-  \item \textbf{Default to BSDID when a treated market has a
-        differential trend or persistent offset from its comparison
-        set.} BSC would attribute the pre-existing drift to campaign
-        impact and overstate incremental lift. BSDID protects against
-        that failure mode.
-  \item \textbf{Confidence around the point estimate is narrower with
-        BSDID.} On average this project sees a 9\,\% tighter credible
-        interval around the lift number, which translates to a
-        smaller reported range when presenting campaign impact to
-        clients.
-  \item \textbf{For every geo-lift engagement, budget for a robustness
-        check.} Fitting once on the observed data answers "what does
-        this campaign look like?" Repeating on resampled or
-        placebo-treated panels answers "how confident can we be in
-        that answer?", which is the second question every senior
-        marketing decision-maker will ask.
+  \item \textbf{Consider BSDID as the default when a treated market
+        has a differential trend or persistent offset from its
+        comparison set.} BSC can attribute pre-existing drift to
+        campaign impact, potentially overstating incremental lift.
+        BSDID reduces that risk.
+  \item \textbf{Credible intervals around the lift estimate can be
+        modestly tighter with BSDID.} On average this project sees a
+        9\,\% tighter credible interval around the lift number, which
+        may translate to a smaller reported range when presenting
+        campaign impact.
+  \item \textbf{Include a robustness check in the engagement scope.}
+        A single fit answers "what does this campaign look like?"
+        Repeating on resampled or placebo-treated panels adds a view
+        on how sensitive that answer is to the data at hand.
 \end{itemize}
 
-\textbf{How this strengthens the client conversation:}
+\textbf{How this can support the client conversation:}
 
 \begin{itemize}
-  \item \textbf{Report lift as a range, not a single number.} A single
-        "+12\,\% incremental sales" figure looks precise but is
-        brittle. Presenting a credible range like "12\,\% $\pm$ 3\,pp"
-        with the underlying distribution acknowledges uncertainty
-        openly, which builds trust with CFO- and CMO-level
-        stakeholders who know that measurement isn't perfect.
-  \item \textbf{Position the method as the difference-maker.} When
-        pitching an MMM or lift-measurement engagement, being able to
-        say "we use state-of-the-art Bayesian causal inference
-        (BSDID) rather than the industry-standard synthetic control
-        because it protects against a well-known measurement error"
-        differentiates the offering from cheaper alternatives.
-  \item \textbf{Use the per-week posterior band to walk the client
-        through what happened.} The mean lift number is one line; the
-        per-week credible band shows ramp-up, stability, or decay.
-        Visual storytelling of the effect over time helps skeptical
-        clients internalize that the model is doing something
-        principled, not just producing a magic number.
-  \item \textbf{Turn credible intervals into risk framing for
-        planners.} "We are 90\,\% confident the lift is between +8\,\%
-        and +16\,\%" reads to a media planner as: budget scenarios
-        can be built for the low and high ends, and downside is
-        bounded. Better than a point estimate that ignores the
-        possibility of being wrong.
-  \item \textbf{Anchor a follow-up conversation on the next
-        experiment.} A rigorous lift report with honest uncertainty
-        naturally leads to "how can we tighten the range for next
-        campaign?"---which opens the door to selling further
-        engagements (larger panel, informative priors from prior
-        campaigns, longer pre-period).
-  \item \textbf{Robustness data reassures cautious buyers.} Being
-        able to say "we tested this method on 20 simulated scenarios
-        and it consistently outperforms the standard approach" gives
-        procurement and analytics-savvy clients a defensible reason
-        to sign off on the engagement.
+  \item \textbf{Consider reporting lift as a range rather than a
+        single number.} Presenting a credible range like "12\,\%
+        $\pm$ 3\,pp" together with the underlying distribution
+        acknowledges measurement uncertainty explicitly, which can
+        help ground the conversation with senior stakeholders.
+  \item \textbf{The method choice can be an anchor when explaining
+        the approach.} Being able to describe why a specific
+        Bayesian causal-inference method was chosen (e.g.\ to protect
+        against pre-period drift) is one way to frame the technical
+        rigour of the engagement.
+  \item \textbf{Use the per-week posterior band when walking the
+        client through what happened.} The mean lift number is one
+        line; the per-week credible band shows ramp-up, stability,
+        or decay over the campaign period.
+  \item \textbf{Credible intervals can be framed as risk ranges.}
+        "The lift is between +8\,\% and +16\,\% with 90\,\%
+        credibility" gives a media planner scenarios for both ends
+        of the range, which some teams find more actionable than a
+        single point estimate.
+  \item \textbf{A rigorous lift report with honest uncertainty can
+        motivate follow-up conversations.} Questions like "how could
+        we tighten the range on the next campaign?" open naturally
+        to discussing larger panels, informative priors from prior
+        campaigns, or longer pre-periods.
+  \item \textbf{Robustness data can be useful in procurement or
+        analytics-heavy conversations.} Being able to describe how a
+        method was validated across simulated scenarios gives one
+        possible answer to "how do you know this method works?"
 \end{itemize}
 
 \section{Limitations}
