@@ -161,7 +161,7 @@ Covers truth   & --      & yes    & yes \\
 
 \subsection{Robustness check across 20 scenarios}
 
-We repeat the full pipeline on 20 different simulated panels to
+I repeat the full pipeline on 20 different simulated panels to
 verify the advantage is not a single-seed artefact.
 
 \begin{table}[H]
@@ -309,7 +309,7 @@ BSC is expected to widen.
 
 The scenario shown in this report is the version where both methods
 land close to the truth and BSDID's advantage is modest. During
-development we also ran versions with a differential pre-period
+development I also ran versions with a differential pre-period
 trend on the treated market and with a treated baseline placed
 outside the convex hull of the controls. In both of those setups
 the gap between BSC and BSDID grew substantially: BSDID's absolute
@@ -323,7 +323,7 @@ no longer fit the pre-period cleanly), which blew up the absolute
 credible-interval widths for both methods to roughly ten times
 their original size, and the intervals became too wide to be
 actionable for a client conversation. The continuing differential
-trend broke a coverage assumption because our simplified BSDID
+trend broke a coverage assumption because my simplified BSDID
 subtracts a static pre-period offset without projecting the trend
 into the post period, causing coverage to fall from around 75\,\%
 to around 20-40\,\% across the 20-seed Monte Carlo.
