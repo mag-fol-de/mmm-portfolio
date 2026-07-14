@@ -41,15 +41,20 @@
 \par}
 \vspace{1.5cm}
 {\Large Magnus Foldeström\\ June 18, 2026\par}
+\vspace{1cm}
+{\normalsize Repository: \href{https://github.com/mag-fol-de/mmm-portfolio}{github.com/mag-fol-de/mmm-portfolio}\par}
 \vfill
 \end{titlepage}
 
 \section{What this project does}
 
-Company S uses Bayesian Synthetic Control (BSC) for geo-lift today and
-is in the process of upgrading to Bayesian Synthetic Difference-in-Differences (BSDID).
-This project fits both models on the same simulated panel with a known
-treatment effect and reports the difference.
+Inspired by a real-world migration in media-measurement platforms from
+Bayesian Synthetic Control (BSC) toward Bayesian Synthetic
+Difference-in-Differences (BSDID), this project fits both models on
+the same simulated panel with a known treatment effect and reports
+the difference. Results are shown for one representative simulated
+panel; a full Monte Carlo study would be needed to separate systematic
+bias from sampling noise.
 
 \section{Data}
 
@@ -111,9 +116,25 @@ with $L_1$ and $L_2$ the two likelihoods above.
 
 \section{Inference}
 
-Both models fitted with Stan via cmdstanpy, four chains of 1\,500 warmup
-+ 1\,500 sampling iterations each. All convergence diagnostics passed:
-no divergences, $\widehat{R} \approx 1$, ESS satisfactory.
+Both models fitted with Stan via cmdstanpy using HMC-NUTS. Diagnostics
+below.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Chains              & 4 \\
+Warmup iterations   & 1\,500 per chain \\
+Sampling iterations & 1\,500 per chain \\
+Post-warmup draws   & 6\,000 \\
+$\max \widehat{R}$  & $\approx 1.00$ \\
+Divergences         & 0 \\
+\bottomrule
+\end{tabular}
+\caption{Convergence diagnostics for both BSC and BSDID fits.}
+\end{table}
 
 \section{Results}
 
@@ -144,7 +165,7 @@ $|$Error$|$    & --      & 5\,450  & \textbf{4\,333} \\
 \caption{Per-week ATT, posterior mean and 90\,\% CI.}
 \end{figure}
 
-\section{Why BSDID is expected to win}
+\section{Why BSDID can outperform BSC}
 
 The treated unit sits slightly below its synthetic control in the
 pre-period. BSC reads that offset as part of the post-period treatment
@@ -152,16 +173,16 @@ effect and underestimates $\tau$ by 22\,\%. BSDID subtracts the offset
 out of the ATT formula. On this panel it overshoots by 17\,\%, but with
 a tighter posterior and a smaller absolute error.
 
-This is consistent with the structural improvement Arkhangelsky et al.\
-predict. It matters whenever the treated region happens to be a little
-above or below the convex hull of its controls in the pre-period, which
-is the common case on real geo data.
+This is consistent with the motivation behind Arkhangelsky et al.'s
+SDID framework. It matters whenever the treated region happens to be
+a little above or below the convex hull of its controls in the
+pre-period, which is the common case on real geo data.
 
 \section{Limitations}
 
 Single seed. Uniform Dirichlet priors. No smoothness regularization on
-$\lambda$ beyond the Dirichlet. Pure on/off treatment. Production-grade
-Company S would add informative priors and a hierarchical structure
-pooling across past experiments.
+$\lambda$ beyond the Dirichlet. Pure on/off treatment. A production
+implementation would add informative priors and a hierarchical
+structure pooling across past experiments.
 
 \end{document}
