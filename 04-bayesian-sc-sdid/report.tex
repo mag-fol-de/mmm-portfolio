@@ -219,16 +219,18 @@ A few practical takeaways for geo-lift work with brand clients.
 \textbf{Method choice:}
 
 \begin{itemize}
-  \item \textbf{Use BSDID when the treated market has a different
-        trend or a persistent gap from its controls.} BSC can read
-        that gap as campaign impact and overstate the lift. BSDID
-        removes the gap first.
+  \item \textbf{Use BSDID as the default choice.} BSDID contains BSC
+        as a special case (uniform time weights recover the BSC
+        estimator), so there is no systematic downside. The lambda
+        correction is either helpful or roughly neutral, never
+        harmful in expectation.
   \item \textbf{How much BSDID beats BSC depends on how different
         the treated market is.} If the treated market looks like a
         weighted mix of its controls (as in this simulation), the
         two methods land close together. If the treated market has
         its own trend, size, or audience mix, BSDID pulls further
-        ahead.
+        ahead by removing the pre-period gap that BSC would
+        misattribute to campaign impact.
   \item \textbf{BSDID's credible interval is on average 9\,\%
         tighter here.} That means a slightly smaller reported range
         when sharing lift numbers with clients.
