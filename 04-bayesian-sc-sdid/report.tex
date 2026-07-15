@@ -2,6 +2,9 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{cmap}
+\input{glyphtounicode}\pdfgentounicode=1
 \usepackage{geometry}
 \geometry{margin=2.2cm}
 \usepackage{xcolor}
@@ -216,7 +219,8 @@ therefore sits well inside the convex hull of its controls, and BSC
 has little systematic offset to leak into the lift estimate. On real
 data where the treated market has a distinct trend, scale, or
 consumer profile relative to the control set, BSDID's improvement
-over BSC is expected to be significantly larger.
+over BSC is expected to be significantly larger. See Section 9 for
+scenarios where this was tested directly.
 
 \section{Implications for client engagements}
 
@@ -303,7 +307,8 @@ effect. The synthetic panel here has homogeneous trends across units
 and only a small pre-period offset on the treated unit, so BSDID's
 correction has relatively little to correct. On real geo data with
 differential regional trends and macro drift, BSDID's margin over
-BSC is expected to widen.
+BSC is expected to widen (see Section 9 for scenarios that tested
+this directly).
 
 \section{Note on scenario choice}
 
